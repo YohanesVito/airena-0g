@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# foundry contracts (separate project)
+/airena-contracts-0g/
+
+# hardhat (legacy)
+/artifacts/
+/cache/
+/contracts/

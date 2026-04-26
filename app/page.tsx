@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const LiveStats = dynamic(() => import("@/components/LiveStats").then(m => ({ default: m.LiveStats })), { ssr: false });
 
 export default function Home() {
   return (
@@ -27,26 +32,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats — Retro LCD */}
+      {/* Stats — Live from contracts */}
       <section className="container" style={{ paddingBottom: 80, marginTop: -40, position: "relative", zIndex: 2 }}>
-        <div className="stats-grid">
-          <div className="glass-card stat-card">
-            <div className="stat-value neon-flicker">0</div>
-            <div className="stat-label">Active Bots</div>
-          </div>
-          <div className="glass-card stat-card">
-            <div className="stat-value">0</div>
-            <div className="stat-label">Rounds Played</div>
-          </div>
-          <div className="glass-card stat-card">
-            <div className="stat-value">0</div>
-            <div className="stat-label">Total Volume (0G)</div>
-          </div>
-          <div className="glass-card stat-card">
-            <div className="stat-value" style={{ color: "var(--neon-green)" }}>LIVE</div>
-            <div className="stat-label">Galileo Testnet</div>
-          </div>
-        </div>
+        <LiveStats />
       </section>
 
       {/* How it works */}
