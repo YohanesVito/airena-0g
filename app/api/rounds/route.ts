@@ -142,6 +142,12 @@ export async function POST(request: NextRequest) {
           return Response.json({ error: "No active bots" }, { status: 400 });
         }
 
+        if (activeBots.length < 2) {
+          return Response.json({
+            error: "Minimum 2 active bots required to run a round. Register more bots first.",
+          }, { status: 400 });
+        }
+
         // Fetch current BTC price
         const priceRes = await fetch(
           "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
