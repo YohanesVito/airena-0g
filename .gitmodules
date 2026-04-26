@@ -1,0 +1,3 @@
+[submodule "airena-contracts-0g/lib/openzeppelin-contracts"]
+	path = airena-contracts-0g/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
