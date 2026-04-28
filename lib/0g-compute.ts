@@ -9,10 +9,21 @@ const MODEL = "qwen-2.5-7b-instruct";
 
 // ============ Types ============
 
+export interface TEEAttestation {
+  // Set when TEE verification succeeded and we successfully fetched the
+  // signature payload. Useful for surfacing a "verified" badge in the UI.
+  signature: string;       // hex-encoded ECDSA signature over `signedText`
+  signer: string;          // recovered/expected signing address (TEE signer)
+  signedText: string;      // exact bytes the provider signed (commitment)
+  chatID: string;          // ZG-Res-Key value, lookup key on the provider
+  verified: boolean;       // result of broker.processResponse
+}
+
 export interface BotPrediction {
   priceLow: number;
   priceHigh: number;
   reasoning: string;
+  tee?: TEEAttestation;
 }
 
 interface LLMResponse {
@@ -56,53 +67,41 @@ function getSigner(): ethers.Wallet {
 }
 
 /**
- * Run a bot's strategy prompt through 0G Compute inference.
- * @param botPrompt The bot's strategy prompt (from 0G Storage)
- * @param btcPrice Current BTC price in USD
- * @returns Parsed prediction with price range and reasoning
+ * Generic 0G Compute inference call. Returns the raw LLM `content` string
+ * plus a TEE attestation (when verifiable). Callers parse `content` into
+ * their own structured shape.
+ *
+ * Used by both runBotInference (bot strategy → price range) and the Judge AI
+ * in lib/0g-judge.ts (recent volatility → candidate zones).
  */
-export async function runBotInference(
-  botPrompt: string,
-  btcPrice: number
-): Promise<BotPrediction> {
+export async function runZGInference(
+  systemPrompt: string,
+  userPrompt: string,
+  opts?: { temperature?: number; maxTokens?: number; logTag?: string }
+): Promise<{ content: string; tee?: TEEAttestation }> {
   const signer = getSigner();
-
-  // 1. Initialize broker (auto-detects testnet contracts)
   const broker = await createZGComputeNetworkBroker(signer);
 
-  // 2. Get service metadata (endpoint + model)
   const { endpoint, model } = await broker.inference.requestProcessor.getServiceMetadata(
     COMPUTE_PROVIDER
   );
 
-  console.log(`[0G Compute] Using endpoint: ${endpoint}, model: ${model}`);
+  const tag = opts?.logTag ?? "0G Compute";
+  console.log(`[${tag}] endpoint=${endpoint} model=${model}`);
 
-  // 3. Generate single-use auth headers
-  const headers = await broker.inference.requestProcessor.getRequestHeaders(
-    COMPUTE_PROVIDER
-  );
+  const headers = await broker.inference.requestProcessor.getRequestHeaders(COMPUTE_PROVIDER);
 
-  // 4. Call inference
   const response = await fetch(`${endpoint}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({
       messages: [
-        {
-          role: "system",
-          content: buildSystemPrompt(botPrompt),
-        },
-        {
-          role: "user",
-          content: `Current BTC price: $${btcPrice.toFixed(2)}. Predict the BTC price range in 1 hour from now. Output JSON only.`,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
       model: model || MODEL,
-      temperature: 0.7,
-      max_tokens: 300,
+      temperature: opts?.temperature ?? 0.7,
+      max_tokens: opts?.maxTokens ?? 300,
     }),
   });
 
@@ -111,6 +110,10 @@ export async function runBotInference(
     throw new Error(`0G Compute inference failed: ${response.status} — ${errorText}`);
   }
 
+  // The provider's signature endpoint is keyed by the ZG-Res-Key response
+  // header, NOT the OpenAI completion id. Falling back to data.id will give
+  // a 400 chat_id_not_found from the signature lookup.
+  const chatID = response.headers.get("ZG-Res-Key") ?? "";
   const data: LLMResponse = await response.json();
   const content = data.choices[0]?.message?.content;
 
@@ -118,23 +121,61 @@ export async function runBotInference(
     throw new Error("Empty response from 0G Compute");
   }
 
-  // 5. Parse prediction from LLM output
-  const prediction = parsePrediction(content);
-
-  // 6. TEE verification — verify the response is genuine
-  const chatID = data.id;
-  try {
-    await broker.inference.responseProcessor.processResponse(
-      COMPUTE_PROVIDER,
-      chatID
-    );
-    console.log(`[0G Compute] TEE verification passed for chat ${chatID}`);
-  } catch (err) {
-    console.warn(`[0G Compute] TEE verification warning: ${err}`);
-    // Don't throw — continue with the prediction even if TEE verify has issues
+  let tee: TEEAttestation | undefined;
+  if (chatID) {
+    try {
+      const verified = await broker.inference.responseProcessor.processResponse(
+        COMPUTE_PROVIDER,
+        chatID
+      );
+      const sigRes = await fetch(
+        `${endpoint}/signature/${chatID}?model=${encodeURIComponent(model || MODEL)}`
+      );
+      if (sigRes.ok) {
+        const sigData = (await sigRes.json()) as {
+          text: string;
+          signature: string;
+          signing_address: string;
+        };
+        tee = {
+          signature: sigData.signature,
+          signer: sigData.signing_address,
+          signedText: sigData.text,
+          chatID,
+          verified: !!verified,
+        };
+        console.log(
+          `[${tag}] TEE ${verified ? "✓ verified" : "✗ unverified"} (signer ${sigData.signing_address})`
+        );
+      }
+    } catch (err) {
+      console.warn(`[${tag}] TEE attestation capture failed: ${err}`);
+    }
   }
 
-  return prediction;
+  return { content, tee };
+}
+
+/**
+ * Run a bot's strategy prompt through 0G Compute inference.
+ * @param botPrompt The bot's strategy prompt (from 0G Storage)
+ * @param btcPrice Current BTC price in USD
+ * @param contextSuffix Optional extra context (e.g., judge zones) appended to system prompt
+ * @returns Parsed prediction with price range, reasoning, and TEE attestation
+ */
+export async function runBotInference(
+  botPrompt: string,
+  btcPrice: number,
+  contextSuffix?: string
+): Promise<BotPrediction> {
+  const sys = buildSystemPrompt(botPrompt) + (contextSuffix ?? "");
+  const { content, tee } = await runZGInference(
+    sys,
+    `Current BTC price: $${btcPrice.toFixed(2)}. Predict the BTC price range in 1 hour from now. Output JSON only.`,
+    { logTag: "Bot" }
+  );
+  const prediction = parsePrediction(content);
+  return { ...prediction, tee };
 }
 
 // ============ Parsing ============

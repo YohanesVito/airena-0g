@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatEther } from "viem";
 import dynamic from "next/dynamic";
 import {
@@ -9,15 +10,48 @@ import {
   useRound,
   useRoundBots,
   useActiveBots,
+  useRoundPredictions,
   usePlaceBet,
   useClaimWinnings,
-  formatRoundStatus,
+  useHasClaimed,
   centsToUsd,
   shortenAddress,
 } from "@/hooks/useContracts";
 import { CONTRACTS, BOT_REGISTRY_ABI, BETTING_POOL_ABI } from "@/lib/contracts";
 import { useReadContract } from "wagmi";
-import type { BotPrediction } from "@/components/BtcChart";
+import type { BotPrediction, JudgeZone } from "@/components/BtcChart";
+// Type-only import — lib/0g-storage.ts has Node-only deps and would bloat the
+// client bundle; `import type` is erased at compile time.
+import type { ReasoningTraceData } from "@/lib/0g-storage";
+
+// Estimated stages for the predict admin action (~2 min total).
+// Used to drive the multi-step progress display so the user isn't left
+// staring at a frozen spinner.
+const PREDICT_STAGES: { label: string; afterSec: number }[] = [
+  { label: "⚖ 0G Judge AI inferring volatility zones…", afterSec: 0 },
+  { label: "🔐 Verifying Judge attestation in TEE…", afterSec: 15 },
+  { label: "🤖 Bot 1 picking a range within the Judge zones…", afterSec: 25 },
+  { label: "💾 Storing reasoning trace on 0G Storage…", afterSec: 50 },
+  { label: "🤖 Bot 2 picking a range within the Judge zones…", afterSec: 75 },
+  { label: "💾 Storing reasoning trace on 0G Storage…", afterSec: 100 },
+  { label: "✓ Submitting predictions on-chain & opening betting…", afterSec: 120 },
+];
+
+// Settlement is much shorter (~25s for 2 bots): one settleRound tx,
+// then one updateBotStats tx per bot.
+const SETTLE_STAGES: { label: string; afterSec: number }[] = [
+  { label: "📡 Fetching settlement BTC price from CoinGecko…", afterSec: 0 },
+  { label: "⛓ settleRound() — scoring predictions on-chain…", afterSec: 3 },
+  { label: "🤖 Updating bot stats (wins / total score)…", afterSec: 12 },
+  { label: "✓ Round settled — bettors can now claim winnings", afterSec: 22 },
+];
+
+// New Round is the fastest action (~6-10s, single createRound tx).
+const CREATE_STAGES: { label: string; afterSec: number }[] = [
+  { label: "✍ Signing createRound() with admin key…", afterSec: 0 },
+  { label: "⛓ Awaiting block confirmation on 0G chain…", afterSec: 3 },
+  { label: "✓ Round created — click Run Predictions next", afterSec: 8 },
+];
 
 const BtcChart = dynamic(() => import("@/components/BtcChart"), { ssr: false });
 
@@ -25,6 +59,9 @@ const botRegistryAddress = CONTRACTS.botRegistry as `0x${string}`;
 const bettingPoolAddress = CONTRACTS.bettingPool as `0x${string}`;
 const BOT_COLORS = ["#00F0FF", "#FF2D78", "#39FF14", "#B44DFF", "#FF6B2B"];
 const ROUND_DURATION = 3600; // 1 hour in seconds
+// Admin wallet address — only this wallet sees the create/predict/settle
+// controls. Empty = hide admin UI for everyone (safe default).
+const ADMIN_ADDRESS = (process.env.NEXT_PUBLIC_ADMIN_ADDRESS ?? "").toLowerCase();
 
 // ============ Countdown Timer ============
 
@@ -65,6 +102,312 @@ function CountdownTimer({ endTime }: { endTime: number }) {
       }}>
         {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
       </div>
+    </div>
+  );
+}
+
+// ============ Reasoning Trace + TEE Badge ============
+
+function useReasoningTrace(reasoningHash: string | undefined) {
+  const [trace, setTrace] = useState<ReasoningTraceData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!reasoningHash || !reasoningHash.startsWith("0x") || reasoningHash.length < 10) {
+      setTrace(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/storage/trace/${reasoningHash}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.trace) setTrace(data.trace as ReasoningTraceData);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reasoningHash]);
+
+  return { trace, loading };
+}
+
+// ============ Judge AI ============
+
+interface JudgeData {
+  zones: JudgeZone[];
+  reasoning: string;
+  traceHash: string;
+  tee?: {
+    signature: string;
+    signer: string;
+    signedText: string;
+    chatID: string;
+    verified: boolean;
+  };
+}
+
+function useJudge(roundId: number, status: number, refreshKey: number) {
+  const [judge, setJudge] = useState<JudgeData | null>(null);
+  // Refetch on round/status change AND when refreshKey is bumped
+  // (e.g. after an admin action completes — useRound's data may still be cached
+  // so status hasn't moved yet, but we still want to fetch fresh judge data).
+  useEffect(() => {
+    if (roundId === 0) {
+      setJudge(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/rounds")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setJudge((data?.judge as JudgeData) ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [roundId, status, refreshKey]);
+  return judge;
+}
+
+function JudgePanel({ judge, settled }: { judge: JudgeData | null; settled: boolean }) {
+  if (!judge) return null;
+  const tee = judge.tee;
+  const short = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
+
+  return (
+    <div
+      className="glass-card mb-6"
+      style={{
+        padding: 20,
+        borderLeft: "3px solid rgba(255,255,255,0.4)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(0,240,255,0.02))",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div className="font-display" style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.85)", textTransform: "uppercase" }}>
+            ⚖ 0G Judge AI
+          </div>
+          <div className="font-mono text-xs text-muted" style={{ marginTop: 4, lineHeight: 1.6 }}>
+            {settled
+              ? "Frame for last round — these zones informed each bot's prediction."
+              : "Volatility forecast — bots are nudged to align their ranges with one of these zones."}
+          </div>
+        </div>
+        {tee ? (
+          <div
+            title={`Verified by 0G Compute TEE\nSigner:   ${tee.signer}\nChat ID:  ${tee.chatID}\nSig:      ${tee.signature.slice(0, 24)}…\nStatus:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unverified"}`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 10px",
+              background: tee.verified ? "rgba(57,255,20,0.08)" : "rgba(255,45,120,0.08)",
+              border: `1px solid ${tee.verified ? "rgba(57,255,20,0.35)" : "rgba(255,45,120,0.35)"}`,
+              borderRadius: 6, cursor: "help",
+            }}
+          >
+            <span style={{ color: tee.verified ? "var(--neon-green)" : "var(--neon-pink)", fontSize: 12 }}>
+              {tee.verified ? "✓" : "⚠"}
+            </span>
+            <span className="font-mono" style={{ fontSize: 10, color: tee.verified ? "var(--neon-green)" : "var(--neon-pink)", letterSpacing: 0.8, fontWeight: 600 }}>
+              VERIFIED · 0G TEE
+            </span>
+            <span className="font-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.55)" }}>
+              {short(tee.signer)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="font-mono text-xs" style={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: 14, fontStyle: "italic" }}>
+        “{judge.reasoning}”
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {judge.zones.map((z, i) => (
+          <div
+            key={i}
+            style={{
+              padding: "10px 14px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8,
+              minWidth: 160,
+            }}
+          >
+            <div className="font-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+              Zone {i + 1}
+            </div>
+            <div className="font-display" style={{ fontSize: 12, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>
+              {z.label}
+            </div>
+            <div className="font-mono" style={{ fontSize: 11, color: "var(--neon-cyan)" }}>
+              ${z.priceLow.toLocaleString()} – ${z.priceHigh.toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TEEBadge({ reasoningHash }: { reasoningHash: string | undefined }) {
+  const { trace, loading } = useReasoningTrace(reasoningHash);
+  const tee = trace?.tee;
+
+  if (!reasoningHash || reasoningHash.length < 10) return null;
+  if (loading && !tee) {
+    return (
+      <div className="font-mono text-xs text-muted" style={{ marginTop: 8, opacity: 0.6 }}>
+        ⟳ fetching TEE attestation…
+      </div>
+    );
+  }
+  if (!tee) return null;
+
+  const short = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
+  const signedPreview = tee.signedText.length > 32 ? `${tee.signedText.slice(0, 32)}…` : tee.signedText;
+  const tooltip = `Verified by 0G Compute TEE
+Signer:   ${tee.signer}
+Chat ID:  ${tee.chatID}
+Signed:   ${signedPreview}
+Sig:      ${tee.signature.slice(0, 24)}…
+Status:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unverified"}`;
+
+  const ok = tee.verified;
+  const accent = ok ? "rgba(57,255,20" : "rgba(255,45,120"; // green vs pink
+
+  return (
+    <div
+      title={tooltip}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 10px",
+        marginTop: 8,
+        background: `${accent},0.08)`,
+        border: `1px solid ${accent},0.35)`,
+        borderRadius: 6,
+        cursor: "help",
+      }}
+    >
+      <span style={{ color: ok ? "var(--neon-green)" : "var(--neon-pink)", fontSize: 12 }}>
+        {ok ? "✓" : "⚠"}
+      </span>
+      <span
+        className="font-mono"
+        style={{
+          fontSize: 10,
+          color: ok ? "var(--neon-green)" : "var(--neon-pink)",
+          letterSpacing: 0.8,
+          fontWeight: 600,
+        }}
+      >
+        VERIFIED · 0G TEE
+      </span>
+      <span
+        className="font-mono"
+        style={{ fontSize: 9, color: "rgba(255,255,255,0.55)" }}
+      >
+        {short(tee.signer)}
+      </span>
+    </div>
+  );
+}
+
+// ============ Bot Strategy (prompt from 0G Storage) ============
+
+function useBotPrompt(storageHash: string | undefined, enabled: boolean) {
+  const [prompt, setPrompt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !storageHash || !storageHash.startsWith("0x")) return;
+    if (prompt !== null) return; // already fetched
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch("/api/storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "retrieve", rootHash: storageHash }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then((res) => {
+        if (cancelled) return;
+        const p = (res.data?.prompt as string) ?? null;
+        if (p) setPrompt(p);
+        else setError("prompt missing in stored data");
+      })
+      .catch((err) => !cancelled && setError(String(err)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [storageHash, enabled, prompt]);
+
+  return { prompt, loading, error };
+}
+
+function BotStrategy({ storageHash, color }: { storageHash: string | undefined; color: string }) {
+  const [open, setOpen] = useState(false);
+  const { prompt, loading, error } = useBotPrompt(storageHash, open);
+
+  if (!storageHash || !storageHash.startsWith("0x")) return null;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="font-mono"
+        style={{
+          fontSize: 10,
+          color: open ? color : "rgba(255,255,255,0.6)",
+          background: "transparent",
+          border: `1px solid ${open ? color : "rgba(255,255,255,0.15)"}`,
+          borderRadius: 6,
+          padding: "5px 10px",
+          letterSpacing: 0.5,
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "left",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span>{open ? "▼" : "▶"} Strategy prompt (0G Storage)</span>
+        <span style={{ opacity: 0.4, fontSize: 9 }}>
+          {storageHash.slice(0, 8)}…{storageHash.slice(-4)}
+        </span>
+      </button>
+      {open ? (
+        <div
+          className="font-mono"
+          style={{
+            marginTop: 6, padding: 10,
+            background: "rgba(0,0,0,0.4)",
+            border: `1px dashed ${color}30`,
+            borderRadius: 6,
+            fontSize: 10, lineHeight: 1.5,
+            color: "rgba(255,255,255,0.8)",
+            maxHeight: 200, overflowY: "auto",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {loading ? "⟳ fetching from 0G Storage…"
+            : error ? <span style={{ color: "var(--neon-pink)" }}>error: {error}</span>
+            : prompt ?? "(empty)"}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -179,6 +522,9 @@ function BotBattleCard({
         </div>
       </div>
 
+      {/* Strategy prompt — fetched on demand from 0G Storage when expanded */}
+      <BotStrategy storageHash={botData.storageHash} color={color} />
+
       {/* Prediction Range */}
       {predData && predData.botId > 0n ? (
         <div style={{
@@ -204,6 +550,9 @@ function BotBattleCard({
               Score: {Number(predData.score)}
             </div>
           ) : null}
+          {/* TEE attestation badge — proves this prediction was produced by a
+              verified 0G Compute provider, not fabricated server-side */}
+          <TEEBadge reasoningHash={predData.reasoningHash} />
         </div>
       ) : null}
 
@@ -270,15 +619,37 @@ function BotBattleCard({
 
 export default function ArenaClient() {
   const { address } = useAccount();
+  const queryClient = useQueryClient();
   const [adminLoading, setAdminLoading] = useState("");
+  const [predictStageIdx, setPredictStageIdx] = useState(0);
+  const [settleStageIdx, setSettleStageIdx] = useState(0);
+  const [createStageIdx, setCreateStageIdx] = useState(0);
+  const [actionMessage, setActionMessage] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
+  // Bumped after each admin action to force the judge fetch (and any other
+  // non-wagmi data) to refresh, even if the round read is still cached.
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const { data: roundCount, refetch: refetchRound } = useRoundCount();
+  const { data: roundCount, error: roundCountError, isFetching: roundCountFetching, status: roundCountStatus } = useRoundCount();
   const currentRoundId = Number(roundCount || 0);
 
   const { data: round } = useRound(currentRoundId);
   const { data: roundBotIds } = useRoundBots(currentRoundId);
   const { data: activeBots } = useActiveBots();
   const { claimWinnings, isPending: claimPending, isConfirming: claimConfirming, isSuccess: claimSuccess } = useClaimWinnings();
+  // Read hasClaimed[round][user] from chain so the button stays disabled
+  // across page reloads and works for users who already claimed previously.
+  const { data: hasClaimedOnChain } = useHasClaimed(currentRoundId, address);
+
+  // After a successful claim, refresh the on-chain hasClaimed flag so the UI
+  // reflects the new state without requiring a manual reload.
+  useEffect(() => {
+    if (claimSuccess) {
+      queryClient.invalidateQueries();
+    }
+  }, [claimSuccess, queryClient]);
 
   const roundData = round as any;
   const botIds = (roundBotIds as bigint[]) || [];
@@ -291,22 +662,103 @@ export default function ArenaClient() {
     ? new Date(endTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "—:—";
 
-  // Build predictions array for chart
-  const [chartPredictions, setChartPredictions] = useState<BotPrediction[]>([]);
+  // Batch-read all on-chain predictions + bot metadata for the current round
+  const { data: predictionData } = useRoundPredictions(currentRoundId, botIds);
 
-  // Read all predictions for chart visualization
+  const realPredictions: BotPrediction[] = useMemo(() => {
+    if (!predictionData || botIds.length === 0) return [];
+    const out: BotPrediction[] = [];
+    for (let i = 0; i < botIds.length; i++) {
+      const pred = predictionData[i * 2]?.result as
+        | { botId: bigint; priceLow: bigint; priceHigh: bigint; score: bigint; scored: boolean }
+        | undefined;
+      const bot = predictionData[i * 2 + 1]?.result as
+        | { id: bigint; name: string }
+        | undefined;
+      // pred.botId === 0n means the bot hasn't submitted a prediction yet
+      if (!pred || !bot || pred.botId === 0n) continue;
+      out.push({
+        botId: Number(bot.id),
+        name: bot.name,
+        priceLow: Number(pred.priceLow) / 100,
+        priceHigh: Number(pred.priceHigh) / 100,
+        color: BOT_COLORS[i % BOT_COLORS.length],
+        won: status === 3 ? Number(pred.score) > 0 : undefined,
+      });
+    }
+    return out;
+  }, [predictionData, botIds, status]);
+
+  // Drive staged progress text for slow admin actions so the user has
+  // something to watch instead of a frozen spinner. Stages advance on a
+  // timer based on STAGES[*].afterSec (rough but conveys what's happening).
   useEffect(() => {
-    if (botIds.length === 0) {
-      setChartPredictions([]);
+    if (adminLoading !== "predict") {
+      setPredictStageIdx(0);
       return;
     }
-    // We'll let the BotBattleCard handle individual reads
-    // For the chart, create placeholder predictions based on botIds
-    // Real data comes from the individual card reads
-  }, [botIds]);
+    const start = Date.now();
+    const tick = () => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      let idx = 0;
+      for (let i = 0; i < PREDICT_STAGES.length; i++) {
+        if (elapsedSec >= PREDICT_STAGES[i].afterSec) idx = i;
+      }
+      setPredictStageIdx(idx);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [adminLoading]);
+
+  useEffect(() => {
+    if (adminLoading !== "settle") {
+      setSettleStageIdx(0);
+      return;
+    }
+    const start = Date.now();
+    const tick = () => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      let idx = 0;
+      for (let i = 0; i < SETTLE_STAGES.length; i++) {
+        if (elapsedSec >= SETTLE_STAGES[i].afterSec) idx = i;
+      }
+      setSettleStageIdx(idx);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [adminLoading]);
+
+  useEffect(() => {
+    if (adminLoading !== "create") {
+      setCreateStageIdx(0);
+      return;
+    }
+    const start = Date.now();
+    const tick = () => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      let idx = 0;
+      for (let i = 0; i < CREATE_STAGES.length; i++) {
+        if (elapsedSec >= CREATE_STAGES[i].afterSec) idx = i;
+      }
+      setCreateStageIdx(idx);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [adminLoading]);
+
+  // Auto-clear the action banner after 6 seconds.
+  useEffect(() => {
+    if (!actionMessage) return;
+    const id = setTimeout(() => setActionMessage(null), 6000);
+    return () => clearTimeout(id);
+  }, [actionMessage]);
 
   const handleAdminAction = async (action: string) => {
     setAdminLoading(action);
+    setActionMessage(null);
     try {
       const res = await fetch("/api/rounds", {
         method: "POST",
@@ -314,16 +766,39 @@ export default function ArenaClient() {
         body: JSON.stringify({ action }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      refetchRound();
+      if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+      // Force every wagmi read to refetch — round status, bots, predictions,
+      // pool, etc. Without this the UI keeps showing the pre-action state.
+      await queryClient.invalidateQueries();
+      // Trigger the (non-wagmi) judge fetch too.
+      setRefreshKey((k) => k + 1);
+      const ok =
+        action === "create"
+          ? "✓ New round created. Click Run Predictions next."
+          : action === "predict"
+            ? "✓ Predictions submitted, betting is OPEN."
+            : action === "settle"
+              ? "✓ Round settled. Bettors can now claim winnings."
+              : "✓ Done.";
+      setActionMessage({ kind: "success", text: ok });
     } catch (err) {
       console.error(`[Admin] ${action} failed:`, err);
+      setActionMessage({
+        kind: "error",
+        text: `${action} failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setAdminLoading("");
     }
   };
 
-  // Demo predictions for chart when no real data
+  // Judge data lives in the API's in-memory cache (not on-chain). Fetch it
+  // separately and refresh whenever round/status/refreshKey changes.
+  const judge = useJudge(currentRoundId, status, refreshKey);
+  const judgeZones: JudgeZone[] = judge?.zones ?? [];
+
+  // Use real on-chain predictions when bots have predicted; fall back to demo
+  // ranges only when there's no round at all (landing-style preview).
   const demoPredictions: BotPrediction[] = currentRoundId === 0
     ? [
         { botId: 1, name: "MomentumBot", priceLow: 94200, priceHigh: 94800, color: BOT_COLORS[0] },
@@ -331,9 +806,25 @@ export default function ArenaClient() {
         { botId: 3, name: "NeuralEdge", priceLow: 94400, priceHigh: 94600, color: BOT_COLORS[2] },
       ]
     : [];
+  const chartPredictions = realPredictions.length > 0 ? realPredictions : demoPredictions;
 
   return (
     <main className="container section">
+      {/* Debug strip — shows the wagmi read state so we can see immediately
+          if the RPC is reachable. Can be removed after diagnostics are done. */}
+      <div className="font-mono text-xs" style={{
+        marginBottom: 16, padding: "8px 12px", borderRadius: 6,
+        background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,240,255,0.15)",
+        display: "flex", gap: 18, flexWrap: "wrap",
+        color: "rgba(255,255,255,0.6)",
+      }}>
+        <span>chain RPC read status: <span style={{ color: roundCountError ? "var(--neon-pink)" : roundCountStatus === "success" ? "var(--neon-green)" : "var(--neon-cyan)" }}>{roundCountStatus}</span></span>
+        <span>roundCount: <span style={{ color: "var(--neon-cyan)" }}>{roundCount?.toString() ?? "(undefined)"}</span></span>
+        <span>fetching: <span style={{ color: roundCountFetching ? "var(--neon-pink)" : "var(--neon-green)" }}>{String(roundCountFetching)}</span></span>
+        {roundCountError ? (
+          <span style={{ color: "var(--neon-pink)" }}>error: {roundCountError.message.slice(0, 80)}</span>
+        ) : null}
+      </div>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
@@ -381,10 +872,14 @@ export default function ArenaClient() {
         </div>
       </div>
 
+      {/* Judge AI panel (volatility forecast → zones for bots to choose from) */}
+      <JudgePanel judge={judge} settled={status === 3} />
+
       {/* BTC Chart with Bot Ranges */}
       <div className="mb-6">
         <BtcChart
-          predictions={demoPredictions}
+          predictions={chartPredictions}
+          judgeZones={judgeZones}
           height={350}
           question={currentRoundId > 0 ? `Target: ${targetTimeStr}` : undefined}
           settlementPrice={
@@ -393,33 +888,151 @@ export default function ArenaClient() {
         />
       </div>
 
-      {/* Admin Controls */}
-      <div className="glass-card mb-6" style={{ padding: 16, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
-        <span className="font-mono text-xs text-muted" style={{ letterSpacing: 1 }}>ADMIN //</span>
-        <button className="btn btn-primary btn-sm" onClick={() => handleAdminAction("create")}
-          disabled={!!adminLoading || (status >= 0 && status < 3)}>
-          {adminLoading === "create" ? "⏳..." : "New Round"}
-        </button>
-        <button className="btn btn-secondary btn-sm" onClick={() => handleAdminAction("predict")}
-          disabled={!!adminLoading || status > 1}>
-          {adminLoading === "predict" ? "⏳ Running AI..." : "Run Predictions"}
-        </button>
-        <button className="btn btn-sm" style={{
-          background: "var(--neon-green)", color: "#000", fontFamily: "var(--font-display)",
-          fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: "8px 16px",
-          border: "none", borderRadius: 8, cursor: "pointer",
-        }} onClick={() => handleAdminAction("settle")} disabled={!!adminLoading || status !== 2}>
-          {adminLoading === "settle" ? "⏳..." : "Settle"}
-        </button>
-      </div>
+      {/* Admin Controls — only rendered when the connected wallet matches
+          NEXT_PUBLIC_ADMIN_ADDRESS. Non-admins see nothing here at all. */}
+      {ADMIN_ADDRESS && address?.toLowerCase() === ADMIN_ADDRESS ? (
+      <div className="glass-card mb-6" style={{ padding: 16 }}>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
+          <span className="font-mono text-xs text-muted" style={{ letterSpacing: 1 }}>ADMIN //</span>
+          <button className="btn btn-primary btn-sm" onClick={() => handleAdminAction("create")}
+            disabled={!!adminLoading || (status >= 0 && status < 3)}>
+            {adminLoading === "create" ? "⏳ Creating round…" : "1. New Round"}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => handleAdminAction("predict")}
+            disabled={!!adminLoading || status > 1}>
+            {adminLoading === "predict" ? "⏳ Running AI… (~2 min)" : "2. Run Predictions"}
+          </button>
+          <button className="btn btn-sm" style={{
+            background: "var(--neon-green)", color: "#000", fontFamily: "var(--font-display)",
+            fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: "8px 16px",
+            border: "none", borderRadius: 8, cursor: "pointer",
+            opacity: (!!adminLoading || status !== 2) ? 0.4 : 1,
+          }} onClick={() => handleAdminAction("settle")} disabled={!!adminLoading || status !== 2}>
+            {adminLoading === "settle" ? "⏳ Settling…" : "3. Settle"}
+          </button>
+        </div>
 
-      {/* Claim */}
+        {/* Staged progress during create round (~8s, one tx) */}
+        {adminLoading === "create" ? (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(0,240,255,0.15)" }}>
+            <div className="font-mono text-xs" style={{ color: "var(--neon-cyan)", marginBottom: 6, letterSpacing: 1 }}>
+              {CREATE_STAGES[createStageIdx]?.label}
+            </div>
+            <div style={{
+              height: 4, background: "rgba(0,240,255,0.1)", borderRadius: 2, overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, ((createStageIdx + 1) / CREATE_STAGES.length) * 100)}%`,
+                background: "linear-gradient(90deg, var(--neon-cyan), var(--neon-pink))",
+                transition: "width 0.5s ease",
+                boxShadow: "0 0 8px rgba(0,240,255,0.4)",
+              }} />
+            </div>
+            <div className="font-mono text-xs text-muted" style={{ marginTop: 6, opacity: 0.6 }}>
+              Step {createStageIdx + 1}/{CREATE_STAGES.length} · ~8s total
+            </div>
+          </div>
+        ) : null}
+
+        {/* Staged progress during predict — gives the user something to watch
+            while ~2 min of AI inference + storage uploads happen server-side */}
+        {adminLoading === "predict" ? (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(0,240,255,0.1)" }}>
+            <div className="font-mono text-xs" style={{ color: "var(--neon-cyan)", marginBottom: 6, letterSpacing: 1 }}>
+              {PREDICT_STAGES[predictStageIdx]?.label}
+            </div>
+            <div style={{
+              height: 4, background: "rgba(0,240,255,0.1)", borderRadius: 2, overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, ((predictStageIdx + 1) / PREDICT_STAGES.length) * 100)}%`,
+                background: "linear-gradient(90deg, var(--neon-cyan), var(--neon-pink))",
+                transition: "width 1s ease",
+                boxShadow: "0 0 8px rgba(0,240,255,0.4)",
+              }} />
+            </div>
+            <div className="font-mono text-xs text-muted" style={{ marginTop: 6, opacity: 0.6 }}>
+              Step {predictStageIdx + 1}/{PREDICT_STAGES.length} · don't close this tab
+            </div>
+          </div>
+        ) : null}
+
+        {/* Staged progress during settle (~25s for 2 bots: 1 settleRound tx
+            plus 1 updateBotStats tx per bot) */}
+        {adminLoading === "settle" ? (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(57,255,20,0.15)" }}>
+            <div className="font-mono text-xs" style={{ color: "var(--neon-green)", marginBottom: 6, letterSpacing: 1 }}>
+              {SETTLE_STAGES[settleStageIdx]?.label}
+            </div>
+            <div style={{
+              height: 4, background: "rgba(57,255,20,0.1)", borderRadius: 2, overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, ((settleStageIdx + 1) / SETTLE_STAGES.length) * 100)}%`,
+                background: "linear-gradient(90deg, var(--neon-green), var(--neon-cyan))",
+                transition: "width 1s ease",
+                boxShadow: "0 0 8px rgba(57,255,20,0.4)",
+              }} />
+            </div>
+            <div className="font-mono text-xs text-muted" style={{ marginTop: 6, opacity: 0.6 }}>
+              Step {settleStageIdx + 1}/{SETTLE_STAGES.length} · this is fast, hang on
+            </div>
+          </div>
+        ) : null}
+
+        {/* Success/error banner — auto-clears after 6s */}
+        {actionMessage ? (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 6,
+              background: actionMessage.kind === "success"
+                ? "rgba(57,255,20,0.08)"
+                : "rgba(255,45,120,0.08)",
+              border: `1px solid ${actionMessage.kind === "success" ? "rgba(57,255,20,0.35)" : "rgba(255,45,120,0.35)"}`,
+              color: actionMessage.kind === "success" ? "var(--neon-green)" : "var(--neon-pink)",
+            }}
+            className="font-mono text-xs"
+          >
+            {actionMessage.text}
+          </div>
+        ) : null}
+      </div>
+      ) : null}
+
+      {/* Claim — disabled once the user has claimed (read from chain so it
+          persists across reloads, plus the in-session claimSuccess flag for
+          immediate feedback before the chain read refreshes). */}
       {status === 3 && address ? (
         <div className="glass-card mb-6" style={{ padding: 16, textAlign: "center" }}>
-          <button className="btn btn-primary" onClick={() => claimWinnings(currentRoundId)} disabled={claimPending || claimConfirming}>
-            {claimPending ? "✍ Confirm..." : claimConfirming ? "⏳..." : "🏆 Claim Winnings"}
-          </button>
-          {claimSuccess ? <div className="text-green font-mono text-sm mt-2">✓ Winnings claimed!</div> : null}
+          {(() => {
+            const alreadyClaimed = hasClaimedOnChain === true || claimSuccess;
+            const busy = claimPending || claimConfirming;
+            return (
+              <>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => claimWinnings(currentRoundId)}
+                  disabled={busy || alreadyClaimed}
+                  style={alreadyClaimed ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                >
+                  {claimPending ? "✍ Confirm in wallet…"
+                    : claimConfirming ? "⏳ Confirming on chain…"
+                    : alreadyClaimed ? "✓ Already Claimed"
+                    : "🏆 Claim Winnings"}
+                </button>
+                {alreadyClaimed ? (
+                  <div className="text-green font-mono text-xs mt-2" style={{ opacity: 0.7 }}>
+                    Claim recorded on-chain · this round is closed for {shortenAddress(address)}
+                  </div>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       ) : null}
 

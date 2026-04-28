@@ -1,6 +1,6 @@
 "use client";
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
 import { parseEther, formatEther } from "viem";
 import { CONTRACTS, BOT_REGISTRY_ABI, BETTING_POOL_ABI } from "@/lib/contracts";
 
@@ -119,6 +119,32 @@ export function usePrediction(roundId: number, botId: number) {
     functionName: "getPrediction",
     args: [BigInt(roundId), BigInt(botId)],
     query: { enabled: roundId > 0 && botId > 0 },
+  });
+}
+
+// Batch-fetch each bot's prediction + bot metadata for a round in a single multicall.
+// Returns interleaved [pred(botIds[0]), bot(botIds[0]), pred(botIds[1]), bot(botIds[1]), ...].
+// Contracts list is cast to any because the human-readable string ABIs in lib/contracts.ts
+// don't satisfy useReadContracts' strict Abi type (works fine at runtime via viem parsing).
+export function useRoundPredictions(roundId: number, botIds: readonly bigint[]) {
+  const contracts = botIds.flatMap((botId) => [
+    {
+      address: bettingPoolAddress,
+      abi: BETTING_POOL_ABI,
+      functionName: "getPrediction",
+      args: [BigInt(roundId), botId],
+    },
+    {
+      address: botRegistryAddress,
+      abi: BOT_REGISTRY_ABI,
+      functionName: "getBot",
+      args: [botId],
+    },
+  ]);
+  return useReadContracts({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    contracts: contracts as any,
+    query: { enabled: roundId > 0 && botIds.length > 0 },
   });
 }
 

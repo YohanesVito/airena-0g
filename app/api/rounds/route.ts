@@ -2,9 +2,17 @@ import { NextRequest } from "next/server";
 import { ethers } from "ethers";
 import { CONTRACTS, BETTING_POOL_ABI, BOT_REGISTRY_ABI } from "@/lib/contracts";
 import { runBotInference, priceToCents } from "@/lib/0g-compute";
-import { storeReasoningTrace, getBotPrompt } from "@/lib/0g-storage";
+import { storeReasoningTrace, storeJudgeTrace, getBotPrompt } from "@/lib/0g-storage";
+import { runJudgeInference, renderZonesForBotPrompt, type JudgeOutput } from "@/lib/0g-judge";
 
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai";
+
+// In-memory cache: judge outputs by roundId. Volatile across server restarts;
+// fine for the hackathon demo since rounds are settled within one session.
+// The full reasoning trace is durable on 0G Storage; only the rootHash mapping
+// is volatile.
+type CachedJudge = JudgeOutput & { traceHash: string };
+const judgeCache = new Map<number, CachedJudge>();
 
 function getServerWallet() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -87,6 +95,7 @@ export async function GET(request: NextRequest) {
       },
       predictions,
       bots,
+      judge: judgeCache.get(currentRoundId) ?? null,
     });
   } catch (error) {
     console.error("[/api/rounds GET] Error:", error);
@@ -155,18 +164,45 @@ export async function POST(request: NextRequest) {
         const priceData = await priceRes.json();
         const btcPrice = priceData.bitcoin.usd;
 
+        // Step 1: Run the Judge AI to propose candidate zones for this round.
+        // The Judge sees recent BTC samples and frames the plausible 1-hour
+        // outcomes. Bots are then prompted with these zones.
+        let judge: JudgeOutput | undefined;
+        let judgeContext = "";
+        let judgeTraceHash = "";
+        try {
+          // Pull a small recent-history window for context
+          const histRes = await fetch(`${new URL(request.url).origin}/api/price/history?hours=4`);
+          const histJson = histRes.ok ? await histRes.json() : { data: [] };
+          const recent = (histJson.data ?? []).map((p: { value: number }) => p.value);
+
+          judge = await runJudgeInference(btcPrice, recent);
+          judgeContext = renderZonesForBotPrompt(judge.zones);
+
+          const judgeStorage = await storeJudgeTrace({
+            roundId,
+            btcPrice,
+            zones: judge.zones,
+            reasoning: judge.reasoning,
+            timestamp: Date.now(),
+            tee: judge.tee,
+          });
+          judgeTraceHash = judgeStorage.rootHash;
+          judgeCache.set(roundId, { ...judge, traceHash: judgeTraceHash });
+          console.log(`[predict] judge proposed ${judge.zones.length} zones, trace ${judgeTraceHash.slice(0, 14)}…`);
+        } catch (err) {
+          console.warn("[predict] judge inference failed, falling back to no-judge:", err);
+        }
+
         const results = [];
 
-        // Run inference for each bot
+        // Step 2: Run each bot, injecting the judge's zones into its system prompt.
         for (const bot of activeBots) {
           try {
-            // Get bot prompt from 0G Storage
             const promptData = await getBotPrompt(bot.storageHash);
 
-            // Run through 0G Compute
-            const prediction = await runBotInference(promptData.prompt, btcPrice);
+            const prediction = await runBotInference(promptData.prompt, btcPrice, judgeContext);
 
-            // Store reasoning trace on 0G Storage
             const traceResult = await storeReasoningTrace({
               botId: Number(bot.id),
               roundId,
@@ -174,9 +210,9 @@ export async function POST(request: NextRequest) {
               priceHigh: prediction.priceHigh,
               reasoning: prediction.reasoning,
               timestamp: Date.now(),
+              tee: prediction.tee,
             });
 
-            // Submit prediction on-chain
             const tx = await bettingPool.submitPrediction(
               roundId,
               bot.id,
@@ -205,7 +241,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Open betting after all predictions
+        // Step 3: Open betting
         try {
           const tx = await bettingPool.openBetting(roundId);
           await tx.wait();
@@ -213,7 +249,13 @@ export async function POST(request: NextRequest) {
           console.warn("[predict] openBetting failed:", err);
         }
 
-        return Response.json({ success: true, roundId, btcPrice, results });
+        return Response.json({
+          success: true,
+          roundId,
+          btcPrice,
+          judge: judge ? { zones: judge.zones, reasoning: judge.reasoning, traceHash: judgeTraceHash } : null,
+          results,
+        });
       }
 
       case "settle": {

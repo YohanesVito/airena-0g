@@ -12,22 +12,23 @@ export interface BotPrediction {
   won?: boolean;
 }
 
+export interface JudgeZone {
+  label: string;
+  priceLow: number;
+  priceHigh: number;
+}
+
 interface BtcChartProps {
   predictions?: BotPrediction[];
+  judgeZones?: JudgeZone[];
   settlementPrice?: number;
   height?: number;
   question?: string;
 }
 
-function generateMockPriceData(basePrice: number, points: number) {
-  const data: { time: number; value: number }[] = [];
-  let price = basePrice;
-  const now = Math.floor(Date.now() / 1000);
-  for (let i = points; i >= 0; i--) {
-    price += (Math.random() - 0.48) * 200;
-    data.push({ time: (now - i * 300) as number, value: Math.round(price * 100) / 100 });
-  }
-  return data;
+interface PricePoint {
+  time: number;
+  value: number;
 }
 
 const BOT_COLORS = ["#00F0FF", "#FF2D78", "#39FF14", "#B44DFF", "#FF6B2B"];
@@ -40,7 +41,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export default function BtcChart({ predictions = [], settlementPrice, height = 400, question }: BtcChartProps) {
+export default function BtcChart({ predictions = [], judgeZones = [], settlementPrice, height = 400, question }: BtcChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [currentPrice, setCurrentPrice] = useState(0);
@@ -49,10 +50,34 @@ export default function BtcChart({ predictions = [], settlementPrice, height = 4
 
   // Draw range overlays using chart coordinate conversion
   const updateOverlays = useCallback(() => {
-    if (!overlayRef.current || !mainSeriesRef.current || predictions.length === 0) return;
+    if (!overlayRef.current || !mainSeriesRef.current) return;
+    if (predictions.length === 0 && judgeZones.length === 0) return;
 
     const series = mainSeriesRef.current;
     let html = "";
+
+    // Judge zones first (rendered faintly behind bot ranges)
+    judgeZones.forEach((zone) => {
+      const y1 = series.priceToCoordinate(zone.priceHigh);
+      const y2 = series.priceToCoordinate(zone.priceLow);
+      if (y1 === null || y2 === null) return;
+      const top = Math.min(y1, y2);
+      const h = Math.abs(y2 - y1);
+      html += `<div style="
+        position:absolute; left:0; right:60px; top:${top}px; height:${h}px;
+        background:repeating-linear-gradient(45deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 4px, transparent 4px, transparent 8px);
+        border-top:1px dashed rgba(255,255,255,0.18);
+        border-bottom:1px dashed rgba(255,255,255,0.18);
+        pointer-events:none; z-index:0;
+      ">
+        <span style="
+          position:absolute; right:8px; top:4px;
+          font-family:'Space Mono',monospace; font-size:8px;
+          color:rgba(255,255,255,0.45); letter-spacing:0.5px;
+          text-transform:uppercase;
+        ">⚖ ${zone.label}</span>
+      </div>`;
+    });
 
     predictions.forEach((pred, idx) => {
       const color = pred.color || BOT_COLORS[idx % BOT_COLORS.length];
@@ -102,14 +127,13 @@ export default function BtcChart({ predictions = [], settlementPrice, height = 4
     }
 
     overlayRef.current.innerHTML = html;
-  }, [predictions, settlementPrice]);
+  }, [predictions, judgeZones, settlementPrice]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const basePrice = 94500 + Math.random() * 1000;
-    const priceData = generateMockPriceData(basePrice, 48);
-    setCurrentPrice(priceData[priceData.length - 1].value);
+    let cancelled = false;
+    const priceData: PricePoint[] = [];
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -151,13 +175,20 @@ export default function BtcChart({ predictions = [], settlementPrice, height = 4
       priceLineStyle: LineStyle.Dashed,
       lastValueVisible: true,
     });
-    mainSeries.setData(priceData as any);
     mainSeriesRef.current = mainSeries;
 
-    chart.timeScale().fitContent();
-
-    // Initial overlay draw (after chart renders)
-    setTimeout(updateOverlays, 100);
+    // Load real BTC history from /api/price/history
+    fetch("/api/price/history?hours=4")
+      .then((r) => r.json())
+      .then((res) => {
+        if (cancelled || !res?.data?.length) return;
+        priceData.push(...(res.data as PricePoint[]));
+        mainSeries.setData(priceData as any);
+        setCurrentPrice(priceData[priceData.length - 1].value);
+        chart.timeScale().fitContent();
+        setTimeout(updateOverlays, 50);
+      })
+      .catch((err) => console.warn("[BtcChart] history fetch failed:", err));
 
     // Redraw overlays on crosshair move / scale change
     chart.subscribeCrosshairMove(updateOverlays);
@@ -170,23 +201,42 @@ export default function BtcChart({ predictions = [], settlementPrice, height = 4
     };
     window.addEventListener("resize", handleResize);
 
-    // Live updates
-    const interval = setInterval(() => {
-      const last = priceData[priceData.length - 1];
-      const newPrice = last.value + (Math.random() - 0.49) * 80;
-      const newPoint = { time: (last.time + 300) as number, value: Math.round(newPrice * 100) / 100 };
-      priceData.push(newPoint);
-      mainSeries.update(newPoint as any);
-      setCurrentPrice(newPoint.value);
-      updateOverlays();
-    }, 3000);
+    // Live BTC price polling — every 15s.
+    // CoinGecko caches hard, so faster polling doesn't help.
+    const interval = setInterval(async () => {
+      try {
+        const r = await fetch("/api/price");
+        if (!r.ok) return;
+        const { price } = (await r.json()) as { price: number };
+        if (cancelled || !price) return;
+        const last = priceData[priceData.length - 1];
+        const nowSec = Math.floor(Date.now() / 1000);
+        // If the new tick is in the same 5-min bucket as the last point,
+        // update; otherwise append. Lightweight-charts requires monotonically
+        // non-decreasing time values.
+        if (last && nowSec - last.time < 300) {
+          const updated = { time: last.time, value: Math.round(price * 100) / 100 };
+          priceData[priceData.length - 1] = updated;
+          mainSeries.update(updated as any);
+        } else {
+          const point = { time: nowSec, value: Math.round(price * 100) / 100 };
+          priceData.push(point);
+          mainSeries.update(point as any);
+        }
+        setCurrentPrice(price);
+        updateOverlays();
+      } catch (err) {
+        console.warn("[BtcChart] price poll failed:", err);
+      }
+    }, 15000);
 
     return () => {
+      cancelled = true;
       clearInterval(interval);
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [predictions, settlementPrice, height, updateOverlays]);
+  }, [predictions, judgeZones, settlementPrice, height, updateOverlays]);
 
   return (
     <div className="glass-card" style={{ padding: 0, overflow: "hidden", position: "relative" }}>

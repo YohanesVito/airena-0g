@@ -1,7 +1,8 @@
 "use client";
 
-import { getDefaultConfig, RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
-import { WagmiProvider } from "wagmi";
+import { connectorsForWallets, RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import { injectedWallet, metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
+import { WagmiProvider, createConfig, http } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { defineChain } from "viem";
 import "@rainbow-me/rainbowkit/styles.css";
@@ -20,11 +21,33 @@ export const zgGalileo = defineChain({
   testnet: true,
 });
 
-const config = getDefaultConfig({
-  appName: "Airena",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
+// We avoid getDefaultConfig because it always wires up a WalletConnect
+// connector — which silently breaks the read transport when no projectId
+// is configured. MetaMask + injected only is enough for the demo.
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Wallets",
+      wallets: [metaMaskWallet, injectedWallet],
+    },
+  ],
+  {
+    appName: "Airena",
+    // projectId is required by the type but unused without WalletConnect.
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "0g-airena",
+  }
+);
+
+const config = createConfig({
   chains: [zgGalileo],
-  ssr: true,
+  connectors,
+  transports: {
+    [zgGalileo.id]: http("https://evmrpc-testnet.0g.ai"),
+  },
+  // ssr: false — keeping reads purely client-side avoids a hydration race
+  // where the server-rendered "no data" state sticks around even after the
+  // client transport is wired up.
+  ssr: false,
 });
 
 const queryClient = new QueryClient();

@@ -1,7 +1,13 @@
 /**
  * Contract ABIs and deployed addresses for Airena.
  * ABIs are minimal — only the functions we actually call from the frontend/backend.
+ *
+ * Why parseAbi: wagmi 3.x / viem doesn't auto-parse human-readable string ABIs
+ * at runtime; passing raw strings yields "Cannot use 'in' operator to search
+ * for 'name' in function ..." when the lib tries to iterate ABI items.
+ * parseAbi converts the strings to the structured AbiItem[] viem expects.
  */
+import { parseAbi } from "viem";
 
 // ============ Addresses (fill after deployment) ============
 
@@ -12,7 +18,7 @@ export const CONTRACTS = {
 
 // ============ BotRegistry ABI ============
 
-export const BOT_REGISTRY_ABI = [
+export const BOT_REGISTRY_ABI = parseAbi([
   // Write
   "function registerBot(string _name, string _storageHash) external payable returns (uint256 botId)",
   "function deactivateBot(uint256 _botId) external",
@@ -21,11 +27,11 @@ export const BOT_REGISTRY_ABI = [
   "function withdrawFees() external",
 
   // Read
-  "function getBot(uint256 _botId) external view returns (tuple(uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active))",
+  "function getBot(uint256 _botId) external view returns ((uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active))",
   "function getBotsByCreator(address _creator) external view returns (uint256[])",
   "function getBotCount() external view returns (uint256)",
-  "function getBotsRange(uint256 _start, uint256 _limit) external view returns (tuple(uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active)[])",
-  "function getActiveBots() external view returns (tuple(uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active)[])",
+  "function getBotsRange(uint256 _start, uint256 _limit) external view returns ((uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active)[])",
+  "function getActiveBots() external view returns ((uint256 id, address creator, string name, string storageHash, uint256 totalRounds, uint256 wins, uint256 totalScore, uint256 createdAt, bool active)[])",
   "function registrationFee() external view returns (uint256)",
   "function botCount() external view returns (uint256)",
 
@@ -33,11 +39,11 @@ export const BOT_REGISTRY_ABI = [
   "event BotRegistered(uint256 indexed botId, address indexed creator, string name, string storageHash)",
   "event BotDeactivated(uint256 indexed botId, address indexed creator)",
   "event BotStatsUpdated(uint256 indexed botId, uint256 score, bool won, uint256 newTotalRounds)",
-] as const;
+]);
 
 // ============ BettingPool ABI ============
 
-export const BETTING_POOL_ABI = [
+export const BETTING_POOL_ABI = parseAbi([
   // Write (owner)
   "function createRound() external returns (uint256 roundId)",
   "function submitPrediction(uint256 _roundId, uint256 _botId, uint256 _priceLow, uint256 _priceHigh, string _reasoningHash, address _botCreator) external",
@@ -50,11 +56,11 @@ export const BETTING_POOL_ABI = [
   "function withdrawCreatorEarnings() external",
 
   // Read
-  "function getRound(uint256 _roundId) external view returns (tuple(uint256 id, uint256 startTime, uint256 endTime, uint256 settlementPrice, uint256 totalPool, uint8 status))",
-  "function getPrediction(uint256 _roundId, uint256 _botId) external view returns (tuple(uint256 botId, uint256 priceLow, uint256 priceHigh, string reasoningHash, uint256 score, bool scored))",
+  "function getRound(uint256 _roundId) external view returns ((uint256 id, uint256 startTime, uint256 endTime, uint256 settlementPrice, uint256 totalPool, uint8 status))",
+  "function getPrediction(uint256 _roundId, uint256 _botId) external view returns ((uint256 botId, uint256 priceLow, uint256 priceHigh, string reasoningHash, uint256 score, bool scored))",
   "function getRoundBots(uint256 _roundId) external view returns (uint256[])",
   "function getRoundBetCount(uint256 _roundId) external view returns (uint256)",
-  "function getBet(uint256 _roundId, uint256 _betIndex) external view returns (tuple(address bettor, uint256 botId, uint256 amount, bool claimed))",
+  "function getBet(uint256 _roundId, uint256 _betIndex) external view returns ((address bettor, uint256 botId, uint256 amount, bool claimed))",
   "function roundCount() external view returns (uint256)",
   "function creatorEarnings(address) external view returns (uint256)",
   "function botPoolSize(uint256 _roundId, uint256 _botId) external view returns (uint256)",
@@ -66,4 +72,4 @@ export const BETTING_POOL_ABI = [
   "event BetPlaced(uint256 indexed roundId, uint256 indexed botId, address indexed bettor, uint256 amount)",
   "event RoundSettled(uint256 indexed roundId, uint256 settlementPrice, uint256 totalPool)",
   "event WinningsClaimed(uint256 indexed roundId, address indexed bettor, uint256 amount)",
-] as const;
+]);

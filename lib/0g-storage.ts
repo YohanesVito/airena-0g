@@ -20,6 +20,21 @@ export interface BotPromptData {
   createdAt: number;
 }
 
+export interface JudgeTraceData {
+  roundId: number;
+  btcPrice: number;
+  zones: { label: string; priceLow: number; priceHigh: number }[];
+  reasoning: string;
+  timestamp: number;
+  tee?: {
+    signature: string;
+    signer: string;
+    signedText: string;
+    chatID: string;
+    verified: boolean;
+  };
+}
+
 export interface ReasoningTraceData {
   botId: number;
   roundId: number;
@@ -27,6 +42,15 @@ export interface ReasoningTraceData {
   priceHigh: number;
   reasoning: string;
   timestamp: number;
+  // TEE attestation captured at inference time. Persisted in the trace so the
+  // "Verified by 0G Compute" badge can be reconstructed for any past round.
+  tee?: {
+    signature: string;
+    signer: string;
+    signedText: string;
+    chatID: string;
+    verified: boolean;
+  };
 }
 
 // ============ Core Functions ============
@@ -64,6 +88,16 @@ export async function storeReasoningTrace(data: ReasoningTraceData): Promise<Sto
   const jsonStr = JSON.stringify(data);
   const bytes = new TextEncoder().encode(jsonStr);
 
+  return uploadToStorage(bytes);
+}
+
+/**
+ * Store a Judge AI trace (zones + reasoning + TEE) on 0G Storage.
+ * The rootHash is kept off-chain (in /api/rounds in-memory cache for now).
+ */
+export async function storeJudgeTrace(data: JudgeTraceData): Promise<StorageResult> {
+  const jsonStr = JSON.stringify(data);
+  const bytes = new TextEncoder().encode(jsonStr);
   return uploadToStorage(bytes);
 }
 
