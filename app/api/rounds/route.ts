@@ -14,6 +14,48 @@ const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai
 type CachedJudge = JudgeOutput & { traceHash: string };
 const judgeCache = new Map<number, CachedJudge>();
 
+// Cap how many bots compete per round. Keeps predict latency predictable
+// (each bot adds ~30-50s of inference + storage upload) and prevents the
+// bettor pool from getting diluted across an unbounded set.
+const MAX_BOTS_PER_ROUND = 5;
+
+// Bot returned by BotRegistry.getActiveBots — accessed by named field via
+// ethers Result. We narrow the shape we actually use here.
+interface ActiveBot {
+  id: bigint;
+  creator: string;
+  name: string;
+  storageHash: string;
+  totalRounds: bigint;
+  wins: bigint;
+}
+
+/**
+ * Pick which bots compete in a round when more than MAX_BOTS_PER_ROUND are
+ * active. Strategy: top (MAX-1) by win rate (with totalRounds as tiebreaker
+ * so proven bots beat lucky-but-untested ones), plus 1 reserved slot for the
+ * newest registered bot — guarantees newcomers can prove themselves instead
+ * of being permanently locked out by the leaderboard.
+ */
+function selectBotsForRound(active: ActiveBot[]): ActiveBot[] {
+  if (active.length <= MAX_BOTS_PER_ROUND) return active;
+
+  const ranked = [...active].sort((a, b) => {
+    const ra = Number(a.totalRounds) > 0 ? Number(a.wins) / Number(a.totalRounds) : 0;
+    const rb = Number(b.totalRounds) > 0 ? Number(b.wins) / Number(b.totalRounds) : 0;
+    if (rb !== ra) return rb - ra;
+    return Number(b.totalRounds) - Number(a.totalRounds);
+  });
+
+  const top = ranked.slice(0, MAX_BOTS_PER_ROUND - 1);
+  const topIds = new Set(top.map((b) => Number(b.id)));
+  const newcomer = active
+    .filter((b) => !topIds.has(Number(b.id)))
+    .sort((a, b) => Number(b.id) - Number(a.id))[0];
+
+  return newcomer ? [...top, newcomer] : ranked.slice(0, MAX_BOTS_PER_ROUND);
+}
+
 function getServerWallet() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
@@ -144,17 +186,24 @@ export async function POST(request: NextRequest) {
         const roundCount = await bettingPool.roundCount();
         const roundId = Number(roundCount);
 
-        // Get all active bots
-        const activeBots = await botRegistry.getActiveBots();
+        // Get all active bots, then narrow to the round's competitor set.
+        const allActive = (await botRegistry.getActiveBots()) as ActiveBot[];
 
-        if (activeBots.length === 0) {
+        if (allActive.length === 0) {
           return Response.json({ error: "No active bots" }, { status: 400 });
         }
 
-        if (activeBots.length < 2) {
+        if (allActive.length < 2) {
           return Response.json({
             error: "Minimum 2 active bots required to run a round. Register more bots first.",
           }, { status: 400 });
+        }
+
+        const activeBots = selectBotsForRound(allActive);
+        if (activeBots.length < allActive.length) {
+          console.log(
+            `[predict] selected ${activeBots.length}/${allActive.length} bots — top by win rate + 1 newcomer slot`
+          );
         }
 
         // Fetch current BTC price

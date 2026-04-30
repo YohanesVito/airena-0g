@@ -7,19 +7,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { defineChain } from "viem";
 import "@rainbow-me/rainbowkit/styles.css";
 
-// 0G Galileo Testnet chain definition
-export const zgGalileo = defineChain({
-  id: 16602,
-  name: "0G-Galileo-Testnet",
+// 0G Mainnet (Aristotle, chain 16661) — deployed 2026-04-30
+export const zgMainnet = defineChain({
+  id: 16661,
+  name: "0G-Mainnet",
   nativeCurrency: { name: "0G", symbol: "0G", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://evmrpc-testnet.0g.ai"] },
+    default: { http: ["https://evmrpc.0g.ai"] },
   },
   blockExplorers: {
-    default: { name: "ChainScan", url: "https://chainscan-galileo.0g.ai" },
+    default: { name: "ChainScan", url: "https://chainscan.0g.ai" },
   },
-  testnet: true,
+  testnet: false,
 });
+
+// Re-export under the old name so existing imports keep working — both names
+// point at the active deployment chain (mainnet).
+export const zgGalileo = zgMainnet;
 
 // We avoid getDefaultConfig because it always wires up a WalletConnect
 // connector — which silently breaks the read transport when no projectId
@@ -39,10 +43,10 @@ const connectors = connectorsForWallets(
 );
 
 const config = createConfig({
-  chains: [zgGalileo],
+  chains: [zgMainnet],
   connectors,
   transports: {
-    [zgGalileo.id]: http("https://evmrpc-testnet.0g.ai"),
+    [zgMainnet.id]: http("https://evmrpc.0g.ai"),
   },
   // ssr: false — keeping reads purely client-side avoids a hydration race
   // where the server-rendered "no data" state sticks around even after the

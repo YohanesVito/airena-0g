@@ -322,6 +322,16 @@ Status:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unver
   );
 }
 
+// Compact-format a raw on-chain score (which is 1e12 / rangeWidth, so it
+// lives in the millions–billions range). 20_000_000 → "20.0M".
+function formatScoreCompact(n: number): string {
+  if (n === 0) return "0";
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return Math.round(n).toString();
+}
+
 // ============ Bot Strategy (prompt from 0G Storage) ============
 
 function useBotPrompt(storageHash: string | undefined, enabled: boolean) {
@@ -420,12 +430,14 @@ function BotBattleCard({
   roundStatus,
   color,
   index,
+  totalWinScore,
 }: {
   botId: number;
   roundId: number;
   roundStatus: number;
   color: string;
   index: number;
+  totalWinScore: number;
 }) {
   const [betAmount, setBetAmount] = useState("0.01");
 
@@ -546,9 +558,32 @@ function BotBattleCard({
             Spread: ${((Number(predData.priceHigh) - Number(predData.priceLow)) / 100).toFixed(0)}
           </div>
           {isSettled ? (
-            <div className="font-mono text-xs" style={{ marginTop: 8, color: hasWon ? "var(--neon-green)" : "var(--neon-pink)" }}>
-              Score: {Number(predData.score)}
-            </div>
+            (() => {
+              const score = Number(predData.score);
+              if (hasWon && totalWinScore > 0) {
+                const sharePct = (score / totalWinScore) * 100;
+                return (
+                  <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--neon-green)" }}>
+                    ✓ Pool share: {sharePct.toFixed(1)}%
+                    <span style={{ marginLeft: 6, opacity: 0.5 }}>
+                      (accuracy {formatScoreCompact(score)})
+                    </span>
+                  </div>
+                );
+              }
+              if (!hasWon && totalWinScore > 0) {
+                return (
+                  <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--neon-pink)" }}>
+                    ✗ Out of range — winners take the pool
+                  </div>
+                );
+              }
+              return (
+                <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--text-muted)" }}>
+                  ✗ Out of range — all bets refunded
+                </div>
+              );
+            })()
           ) : null}
           {/* TEE attestation badge — proves this prediction was produced by a
               verified 0G Compute provider, not fabricated server-side */}
@@ -688,6 +723,19 @@ export default function ArenaClient() {
     }
     return out;
   }, [predictionData, botIds, status]);
+
+  // Sum of all winning bots' scores — denominator for "pool share %" math
+  // shown on each bot card after settlement. Computed from the same batched
+  // prediction reads so we don't make an extra contract call.
+  const totalWinScore = useMemo(() => {
+    if (!predictionData || botIds.length === 0) return 0;
+    let sum = 0;
+    for (let i = 0; i < botIds.length; i++) {
+      const pred = predictionData[i * 2]?.result as { score?: bigint } | undefined;
+      if (pred?.score) sum += Number(pred.score);
+    }
+    return sum;
+  }, [predictionData, botIds]);
 
   // Drive staged progress text for slow admin actions so the user has
   // something to watch instead of a frozen spinner. Stages advance on a
@@ -1054,6 +1102,7 @@ export default function ArenaClient() {
               roundStatus={status}
               color={BOT_COLORS[idx % BOT_COLORS.length]}
               index={idx}
+              totalWinScore={totalWinScore}
             />
           ))}
         </div>

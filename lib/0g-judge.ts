@@ -31,9 +31,9 @@ The bots will pick a price range within (or near) one of your zones. Your job is
 OUTPUT FORMAT (JSON only, no markdown, no commentary):
 {
   "zones": [
-    { "label": "Bullish breakout", "priceLow": 78000, "priceHigh": 78500 },
-    { "label": "Sideways", "priceLow": 77600, "priceHigh": 78200 },
-    { "label": "Bearish dip", "priceLow": 77000, "priceHigh": 77600 }
+    { "label": "Bullish breakout", "priceLow": 78000, "priceHigh": 78900 },
+    { "label": "Sideways", "priceLow": 77400, "priceHigh": 78100 },
+    { "label": "Bearish dip", "priceLow": 76800, "priceHigh": 77500 }
   ],
   "reasoning": "2-3 sentence summary of the market context and zone choices."
 }
@@ -41,11 +41,14 @@ OUTPUT FORMAT (JSON only, no markdown, no commentary):
 RULES:
 - Output ONLY valid JSON. No markdown fences, no extra text.
 - Exactly 3 zones.
-- Each zone's width = 0.3% to 1.2% of current price.
-- priceLow MUST be strictly less than priceHigh.
+- Each zone's width = 0.7% to 1.5% of current BTC price.
+  Example at \$77,000: each zone width \$540 – \$1,155.
+- priceLow MUST be strictly less than priceHigh (rangeWidth > 0).
+- Adjacent zones MAY overlap by up to 30%, but should NOT be identical.
+- Together the zones should cover a 3%–5% band around the current price
+  (e.g. at \$77,000 the outermost low to outermost high should span \$2,300 – \$3,850).
 - Labels are 1-3 words describing the scenario.
-- Together the zones should cover a 2%–3% band around the current price.
-- Use USD decimal numbers (e.g. 77500.50), no commas.`;
+- Use USD decimal numbers (e.g. 77500.50), no commas, no currency symbols.`;
 
 function buildJudgeUserPrompt(btcPrice: number, recentPrices: number[]): string {
   const samples = recentPrices.length > 0 ? recentPrices : [btcPrice];

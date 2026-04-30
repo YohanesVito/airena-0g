@@ -44,25 +44,37 @@ function seededRandom(seed: number) {
   return x - Math.floor(x);
 }
 
-// Floating particles
+// Floating particles. All numeric values are pinned to fixed precision so
+// SSR and client render emit byte-identical CSS strings — Next.js 16
+// (Turbopack) was emitting `"39.9757%"` on the server vs `"39.97566...%"` on
+// the client, triggering a hydration mismatch.
 function Particles() {
   return (
     <div className="particles-container" aria-hidden="true">
-      {Array.from({ length: 20 }, (_, i) => (
-        <div
-          key={i}
-          className="particle"
-          style={{
-            left: `${seededRandom(i * 7 + 1) * 100}%`,
-            top: `${seededRandom(i * 7 + 2) * 100}%`,
-            animationDelay: `${seededRandom(i * 7 + 3) * 8}s`,
-            animationDuration: `${6 + seededRandom(i * 7 + 4) * 8}s`,
-            width: `${2 + seededRandom(i * 7 + 5) * 3}px`,
-            height: `${2 + seededRandom(i * 7 + 6) * 3}px`,
-            opacity: 0.3 + seededRandom(i * 7 + 7) * 0.5,
-          }}
-        />
-      ))}
+      {Array.from({ length: 20 }, (_, i) => {
+        const left = (seededRandom(i * 7 + 1) * 100).toFixed(4);
+        const top = (seededRandom(i * 7 + 2) * 100).toFixed(4);
+        const delay = (seededRandom(i * 7 + 3) * 8).toFixed(3);
+        const duration = (6 + seededRandom(i * 7 + 4) * 8).toFixed(3);
+        const width = (2 + seededRandom(i * 7 + 5) * 3).toFixed(3);
+        const height = (2 + seededRandom(i * 7 + 6) * 3).toFixed(3);
+        const opacity = (0.3 + seededRandom(i * 7 + 7) * 0.5).toFixed(3);
+        return (
+          <div
+            key={i}
+            className="particle"
+            style={{
+              left: `${left}%`,
+              top: `${top}%`,
+              animationDelay: `${delay}s`,
+              animationDuration: `${duration}s`,
+              width: `${width}px`,
+              height: `${height}px`,
+              opacity,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

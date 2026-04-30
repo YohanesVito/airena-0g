@@ -36,11 +36,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+#notes
+*.txt
+report.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# foundry contracts (separate project)
+# foundry contracts — separate repo (https://github.com/YohanesVito/airena-contracts-0g)
 /airena-contracts-0g/
 
 # hardhat (legacy)
