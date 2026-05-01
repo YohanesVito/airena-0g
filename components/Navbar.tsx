@@ -16,6 +16,12 @@ export function Navbar() {
   return (
     <nav className="navbar">
       <Link href="/" className="navbar-brand neon-flicker">
+        <img
+          src="/logo-icon.svg"
+          alt=""
+          aria-hidden="true"
+          style={{ height: 32, width: 32, display: "block" }}
+        />
         AIRENA
       </Link>
 

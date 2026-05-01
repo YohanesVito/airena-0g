@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="#0b0b1a"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="11.5" fill="none" stroke="url(#border)" stroke-opacity="0.4"/>
+
+  <!-- Subtle grid -->
+  <g stroke="#00f0ff" stroke-opacity="0.06" stroke-width="0.5">
+    <line x1="0" y1="16" x2="64" y2="16"/>
+    <line x1="0" y1="32" x2="64" y2="32"/>
+    <line x1="0" y1="48" x2="64" y2="48"/>
+    <line x1="16" y1="0" x2="16" y2="64"/>
+    <line x1="48" y1="0" x2="48" y2="64"/>
+  </g>
+
+  <!-- LEFT BOT (cyan) -->
+  <g filter="url(#glowCyan)">
+    <!-- antenna -->
+    <line x1="13" y1="8" x2="13" y2="14" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="13" cy="6.5" r="1.8" fill="#00f0ff"/>
+    <!-- head -->
+    <rect x="5" y="14" width="16" height="14" rx="2" fill="#0b0b1a" stroke="#00f0ff" stroke-width="2"/>
+    <!-- eye visor -->
+    <rect x="7.5" y="18" width="11" height="3" rx="0.5" fill="#00f0ff"/>
+    <!-- mouth grille -->
+    <rect x="9" y="24" width="1.5" height="2" fill="#00f0ff"/>
+    <rect x="12.25" y="24" width="1.5" height="2" fill="#00f0ff"/>
+    <rect x="15.5" y="24" width="1.5" height="2" fill="#00f0ff"/>
+    <!-- body -->
+    <rect x="7" y="30" width="12" height="14" rx="2" fill="#0b0b1a" stroke="#00f0ff" stroke-width="2"/>
+    <!-- chest core -->
+    <rect x="11" y="34" width="4" height="4" rx="0.5" fill="#00f0ff"/>
+    <!-- raised fist arm -->
+    <rect x="20" y="30" width="3" height="6" fill="#00f0ff"/>
+    <rect x="22" y="26" width="6" height="6" rx="1" fill="#00f0ff"/>
+    <!-- legs -->
+    <rect x="8" y="46" width="4" height="10" fill="#0b0b1a" stroke="#00f0ff" stroke-width="1.8"/>
+    <rect x="14" y="46" width="4" height="10" fill="#0b0b1a" stroke="#00f0ff" stroke-width="1.8"/>
+  </g>
+
+  <!-- RIGHT BOT (pink) -->
+  <g filter="url(#glowPink)">
+    <line x1="51" y1="8" x2="51" y2="14" stroke="#ff2d78" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="51" cy="6.5" r="1.8" fill="#ff2d78"/>
+    <rect x="43" y="14" width="16" height="14" rx="2" fill="#0b0b1a" stroke="#ff2d78" stroke-width="2"/>
+    <rect x="45.5" y="18" width="11" height="3" rx="0.5" fill="#ff2d78"/>
+    <rect x="47" y="24" width="1.5" height="2" fill="#ff2d78"/>
+    <rect x="50.25" y="24" width="1.5" height="2" fill="#ff2d78"/>
+    <rect x="53.5" y="24" width="1.5" height="2" fill="#ff2d78"/>
+    <rect x="45" y="30" width="12" height="14" rx="2" fill="#0b0b1a" stroke="#ff2d78" stroke-width="2"/>
+    <rect x="49" y="34" width="4" height="4" rx="0.5" fill="#ff2d78"/>
+    <rect x="41" y="30" width="3" height="6" fill="#ff2d78"/>
+    <rect x="36" y="26" width="6" height="6" rx="1" fill="#ff2d78"/>
+    <rect x="46" y="46" width="4" height="10" fill="#0b0b1a" stroke="#ff2d78" stroke-width="1.8"/>
+    <rect x="52" y="46" width="4" height="10" fill="#0b0b1a" stroke="#ff2d78" stroke-width="1.8"/>
+  </g>
+
+  <!-- LIGHTNING BOLT in middle -->
+  <g filter="url(#glowYellow)">
+    <path d="M 34 20 L 28 33 L 33 33 L 30 46 L 38 31 L 33 31 L 36 20 Z"
+          fill="#ffe14d" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
+  </g>
+
+  <defs>
+    <linearGradient id="border" x1="0" y1="0" x2="64" y2="64">
+      <stop offset="0" stop-color="#00f0ff"/>
+      <stop offset="1" stop-color="#ff2d78"/>
+    </linearGradient>
+    <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowPink" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowYellow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
