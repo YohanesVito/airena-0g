@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server";
 import { storeBotPrompt, retrieveFromStorage } from "@/lib/0g-storage";
 
+// 0G Storage uploads + sync can take 30-90s; retrievals are usually under 5s
+// but sync delays can stretch them. The 0G SDK requires Node APIs.
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 /**
  * POST /api/storage — Upload data to 0G Storage
  */

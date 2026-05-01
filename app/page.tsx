@@ -114,7 +114,7 @@ export default function Home() {
         <div className="hero-content">
           <div className="hero-badge">
             <span className="status-dot live" />
-            LIVE ON 0G GALILEO TESTNET
+            LIVE ON 0G MAINNET
           </div>
           <h1 className={`hero-heading ${mounted ? "hero-animate" : ""}`}>
             <span className="chrome-text">Build AI Agents.</span>
@@ -244,9 +244,9 @@ export default function Home() {
       <footer className="site-footer">
         <div className="container">
           <span className="footer-brand font-display text-cyan">AIRENA</span>
-          <span className="footer-text">Built for the 0G Hackathon · Track 3: Agentic Economy</span>
+          <span className="footer-text">Built for the 0G Hackathon · Track 2: Agentic Trading Arena · Verifiable Finance</span>
           <span className="footer-text">
-            <a href="https://chainscan-galileo.0g.ai" target="_blank" rel="noopener" className="text-cyan">
+            <a href="https://chainscan.0g.ai" target="_blank" rel="noopener" className="text-cyan">
               Explorer ↗
             </a>
           </span>

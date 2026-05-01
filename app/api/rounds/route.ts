@@ -5,6 +5,14 @@ import { runBotInference, priceToCents } from "@/lib/0g-compute";
 import { storeReasoningTrace, storeJudgeTrace, getBotPrompt } from "@/lib/0g-storage";
 import { runJudgeInference, renderZonesForBotPrompt, type JudgeOutput } from "@/lib/0g-judge";
 
+// A predict cycle = Judge inference + N bot inferences + N+1 storage uploads
+// + on-chain submits. Empirically 2-5 minutes; default Vercel timeout is 10s
+// (Hobby) / 60s (Pro). 300s is the Pro/Enterprise max — required to keep the
+// route from 504-ing mid-round. Node runtime is needed because the 0G SDK
+// uses Node-only crypto/streams APIs that aren't available on the edge.
+export const maxDuration = 300;
+export const runtime = "nodejs";
+
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai";
 
 // In-memory cache: judge outputs by roundId. Volatile across server restarts;
