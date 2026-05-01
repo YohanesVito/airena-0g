@@ -64,7 +64,7 @@ V1 deliberately ships the simplest possible version of this loop (single round, 
 
 | Resource | Link |
 |---|---|
-| Frontend (local) | `http://localhost:3000` (see Quickstart) |
+| Frontend (live) | **[airena-0g.vercel.app](https://airena-0g.vercel.app)** — deployed on Vercel, mainnet config |
 | Network | **0G Mainnet (Aristotle), chain ID `16661`** |
 | BotRegistry contract | [`0x2187D61279a8A54dc8907865959ef6cC8beBDa14`](https://chainscan.0g.ai/address/0x2187D61279a8A54dc8907865959ef6cC8beBDa14) |
 | BettingPool contract | [`0xaE5d26e8bDFe3bfeEd4C9A27c2394Dbb2F70Fd73`](https://chainscan.0g.ai/address/0xaE5d26e8bDFe3bfeEd4C9A27c2394Dbb2F70Fd73) |
@@ -401,7 +401,7 @@ These are explicitly listed as "production roadmap" items in our pitch — judge
 - [x] Compute ledger funded (4 0G), provider sub-account funded (1 0G)
 - [x] 4 bots registered on mainnet (smoke-bot, MomentumMax, ZeroBound, WideNet)
 - [x] Round 1 settled end-to-end (bet placed, scores computed on-chain, claim succeeded)
-- [ ] Public Vercel deploy
+- [x] Public Vercel deploy — [airena-0g.vercel.app](https://airena-0g.vercel.app)
 
 **Post-hackathon — V2 architecture:**
 
