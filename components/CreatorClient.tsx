@@ -231,7 +231,9 @@ export default function CreatorClient() {
                 <th>Rounds</th>
                 <th>Wins</th>
                 <th>Win Rate</th>
-                <th>Avg Score</th>
+                <th title="Average BTC range width across winning rounds — smaller is tighter, better bots">
+                  Avg Range
+                </th>
                 <th>Storage</th>
               </tr>
             </thead>
@@ -239,8 +241,21 @@ export default function CreatorClient() {
               {bots.map((bot) => {
                 const rounds = Number(bot.totalRounds);
                 const wins = Number(bot.wins);
+                const totalScore = Number(bot.totalScore);
                 const winRate = rounds > 0 ? ((wins / rounds) * 100).toFixed(1) : "—";
-                const avgScore = rounds > 0 ? (Number(bot.totalScore) / rounds).toFixed(1) : "—";
+                // Score formula in BettingPool.sol is `score = SCORE_PRECISION
+                // / rangeCents` with SCORE_PRECISION=1e12 and rangeCents in
+                // USD-cents. Inverting gives implied range width in USD:
+                //   rangeUsd = 1e10 / score
+                // We invert the harmonic-style average (totalScore/wins) so the
+                // column reads as a dollar amount viewers can reason about
+                // ("smoke-bot averaged a $300 range") instead of an opaque
+                // 8-digit score. wins (not rounds) is the divisor because
+                // totalScore only accumulates on rounds the bot won.
+                const avgRangeUsd =
+                  wins > 0 && totalScore > 0
+                    ? Math.round(1e10 / (totalScore / wins))
+                    : null;
                 const winRateColor =
                   rounds === 0
                     ? "var(--text-muted)"
@@ -273,7 +288,15 @@ export default function CreatorClient() {
                         {rounds > 0 ? "%" : ""}
                       </span>
                     </td>
-                    <td>{avgScore}</td>
+                    <td>
+                      {avgRangeUsd !== null ? (
+                        <span className="font-mono">
+                          ${avgRangeUsd.toLocaleString("en-US")}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
                     <td>
                       <span className="font-mono text-muted" style={{ fontSize: 11 }}>
                         {bot.storageHash.slice(0, 10)}…
