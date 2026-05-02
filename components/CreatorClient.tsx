@@ -56,8 +56,17 @@ export default function CreatorClient() {
 
   const { data: earningsRaw } = useCreatorEarnings(address);
   const earningsWei = (earningsRaw as bigint | undefined) ?? 0n;
-  const earningsFormatted = formatEther(earningsWei);
   const hasEarnings = earningsWei > 0n;
+  // formatEther returns full 18-decimal precision which renders as
+  // "0.00009999999999999998" in the UI. Round to 4 dp for display, and
+  // surface "<0.0001" for non-zero amounts that round to zero so they
+  // don't visually disappear from the dashboard.
+  const earningsDisplay = (() => {
+    if (!hasEarnings) return "0";
+    const n = Number(formatEther(earningsWei));
+    if (n < 0.0001) return "<0.0001";
+    return n.toFixed(4);
+  })();
 
   const {
     withdraw,
@@ -124,7 +133,7 @@ export default function CreatorClient() {
       ? "⏳ Confirming on chain…"
       : !hasEarnings
         ? "Nothing to withdraw"
-        : `💰 Withdraw ${earningsFormatted} 0G`;
+        : `💰 Withdraw ${earningsDisplay} 0G`;
 
   return (
     <main className="container section">
@@ -177,7 +186,7 @@ export default function CreatorClient() {
               marginTop: 4,
             }}
           >
-            {earningsFormatted} <span style={{ fontSize: 14, opacity: 0.7 }}>0G</span>
+            {earningsDisplay} <span style={{ fontSize: 14, opacity: 0.7 }}>0G</span>
           </div>
           <div className="font-mono text-xs text-muted mt-2">
             Accrues at 10% of every round your bot wins. Withdraw any time.
