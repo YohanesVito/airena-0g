@@ -10,6 +10,7 @@ export function Navbar() {
   const links = [
     { href: "/arena", label: "Arena" },
     { href: "/create", label: "Build" },
+    { href: "/creator", label: "Dashboard" },
     { href: "/leaderboard", label: "Leaderboard" },
   ];
 
