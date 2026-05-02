@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
+import FAQ from "@/components/FAQ";
 
 const LiveStats = dynamic(() => import("@/components/LiveStats").then(m => ({ default: m.LiveStats })), { ssr: false });
 // LiveBattlePreview pulls round data via wagmi hooks; loading it with
@@ -404,6 +405,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* FAQ */}
+      <FAQ />
 
       {/* CTA */}
       <section className="cta-section">

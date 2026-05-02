@@ -593,56 +593,76 @@ function BotBattleCard({
         </div>
       ) : null}
 
-      {/* Pool */}
-      {pool !== undefined ? (
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "8px 12px",
-          background: "rgba(0,0,0,0.3)",
-          borderRadius: 6,
-          marginBottom: isBetting ? 12 : 0,
-        }}>
-          <span className="font-mono text-xs text-muted">Pool</span>
-          <span className="font-display" style={{ fontSize: 13, color: "var(--neon-green)" }}>
-            {formatEther(pool)} 0G
-          </span>
-        </div>
-      ) : null}
+      {/* Pool — clarify this is the per-bot stake pool that the user's
+          bet will grow. Shows a "→ X 0G" delta when the input has a valid
+          amount so the user sees the impact of their stake before clicking. */}
+      {pool !== undefined ? (() => {
+        const stakeNum = parseFloat(betAmount);
+        const validStake = Number.isFinite(stakeNum) && stakeNum >= 0.001;
+        const projected = validStake
+          ? Number(formatEther(pool)) + stakeNum
+          : null;
+        return (
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 12px",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: 6,
+            marginBottom: isBetting ? 8 : 0,
+          }}>
+            <span className="font-mono text-xs text-muted">Stake on this bot</span>
+            <span className="font-display" style={{ fontSize: 13, color: "var(--neon-green)" }}>
+              {formatEther(pool)} 0G
+              {isBetting && projected !== null ? (
+                <span className="font-mono text-xs" style={{ color: "var(--neon-cyan)", marginLeft: 8, opacity: 0.85 }}>
+                  → {projected.toFixed(3)} 0G
+                </span>
+              ) : null}
+            </span>
+          </div>
+        );
+      })() : null}
 
       {/* Bet Controls */}
       {isBetting ? (
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            type="number"
-            className="input"
-            value={betAmount}
-            onChange={(e) => setBetAmount(e.target.value)}
-            min="0.001"
-            step="0.01"
-            style={{ flex: 1, fontSize: 12, padding: "10px 12px" }}
-          />
-          <button
-            className="btn btn-sm"
-            style={{
-              background: color,
-              color: "#000",
-              fontFamily: "var(--font-display)",
-              fontSize: 11,
-              fontWeight: 700,
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 16px",
-              cursor: "pointer",
-              boxShadow: `0 0 12px ${color}40`,
-            }}
-            onClick={() => placeBet(roundId, botId, betAmount)}
-            disabled={isPending || isConfirming}
-          >
-            {isPending ? "..." : isConfirming ? "..." : "BET"}
-          </button>
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              className="input"
+              value={betAmount}
+              onChange={(e) => setBetAmount(e.target.value)}
+              min="0.001"
+              step="0.01"
+              placeholder="Stake (0G)"
+              style={{ flex: 1, fontSize: 12, padding: "10px 12px" }}
+            />
+            <button
+              className="btn btn-sm"
+              style={{
+                background: color,
+                color: "#000",
+                fontFamily: "var(--font-display)",
+                fontSize: 11,
+                fontWeight: 700,
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 16px",
+                cursor: "pointer",
+                boxShadow: `0 0 12px ${color}40`,
+              }}
+              onClick={() => placeBet(roundId, botId, betAmount)}
+              disabled={isPending || isConfirming}
+            >
+              {isPending ? "..." : isConfirming ? "..." : "BET"}
+            </button>
+          </div>
+          <div className="font-mono text-xs text-muted mt-2" style={{ lineHeight: 1.6, opacity: 0.75 }}>
+            Your stake funds this bot&apos;s pool. If this bot wins, you split 85% of the round pool weighted by stake and tightness.
+          </div>
+        </>
       ) : null}
 
       {isSuccess ? (

@@ -13,6 +13,7 @@ import {
   shortenAddress,
 } from "@/hooks/useContracts";
 import { CONTRACTS, BOT_REGISTRY_ABI } from "@/lib/contracts";
+import BetHistory from "@/components/BetHistory";
 
 type BotStruct = {
   id: bigint;
@@ -303,6 +304,12 @@ export default function CreatorClient() {
           </table>
         </div>
       )}
+
+      {/* Bet history — shows the connected wallet's recent bets across the
+          last few rounds so creators who also bet can audit their own
+          activity in one place. Bounded scan window keeps the multicall
+          cheap on busy seasons. */}
+      <BetHistory address={address} />
 
       <div className="flex gap-6 mt-4 justify-center">
         <span className="font-mono text-xs text-muted">
