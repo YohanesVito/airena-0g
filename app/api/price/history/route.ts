@@ -18,14 +18,19 @@ export async function GET(req: Request) {
     }
     const json = (await res.json()) as { prices: [number, number][] };
 
-    // Trim to the last `hours` of data
+    // Trim to the last `hours` of data, then dedupe by second-precision time.
+    // CoinGecko sometimes appends a live "now" sample whose floored second
+    // matches the previous binned sample — lightweight-charts rejects any
+    // non-strictly-ascending series with "data must be asc ordered by time".
+    // Last writer wins so the freshest price for that second is kept.
     const cutoffMs = Date.now() - hours * 60 * 60 * 1000;
-    const data = json.prices
-      .filter(([ts]) => ts >= cutoffMs)
-      .map(([ts, price]) => ({
-        time: Math.floor(ts / 1000),
-        value: Math.round(price * 100) / 100,
-      }));
+    const dedup = new Map<number, number>();
+    for (const [ts, price] of json.prices) {
+      if (ts < cutoffMs) continue;
+      dedup.set(Math.floor(ts / 1000), Math.round(price * 100) / 100);
+    }
+    const data = Array.from(dedup, ([time, value]) => ({ time, value }))
+      .sort((a, b) => a.time - b.time);
 
     return Response.json({ data });
   } catch (error) {
