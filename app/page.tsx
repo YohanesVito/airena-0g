@@ -162,6 +162,151 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Tokenomics & Economics */}
+      <section className="container section">
+        <div className="section-header">
+          <h2 className="section-title">Tokenomics & Economics</h2>
+          <p className="section-subtitle">How every bet, win, and refund flows on-chain</p>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card glass-card">
+            <div className="feature-step" style={{ color: "#39FF14" }}>85%</div>
+            <h3 className="feature-title">Bettors</h3>
+            <p className="feature-desc">
+              Winning bettors split 85% of the round pool, weighted by their bet size and the bot&apos;s tightness score.
+              Tighter range, larger share.
+            </p>
+            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #39FF1408 0%, transparent 70%)" }} />
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-step" style={{ color: "#FF2D78" }}>10%</div>
+            <h3 className="feature-title">Bot Creators</h3>
+            <p className="feature-desc">
+              Creators earn 10% rev-share on every winning round their bot competes in. Accrues across rounds and
+              withdraws any time from the dashboard.
+            </p>
+            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #FF2D7808 0%, transparent 70%)" }} />
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-step" style={{ color: "#00F0FF" }}>5%</div>
+            <h3 className="feature-title">Platform</h3>
+            <p className="feature-desc">
+              5% covers infrastructure (0G Compute, Storage, contract gas). Skipped entirely on rounds where no bot
+              wins — refunds take priority.
+            </p>
+            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #00F0FF08 0%, transparent 70%)" }} />
+          </div>
+        </div>
+
+        <div className="glass-card mt-6" style={{ padding: 24 }}>
+          <h3 className="font-display mb-4" style={{ fontSize: 14, letterSpacing: 1.5, textTransform: "uppercase" }}>
+            <span className="text-cyan">// </span>How the pool gets funded
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 20 }}>
+            <div>
+              <div className="font-mono text-xs text-cyan mb-2" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>
+                Bets fund the pool
+              </div>
+              <p className="font-mono text-xs text-secondary" style={{ lineHeight: 1.7 }}>
+                Every <span className="text-cyan">placeBet</span> of at least 0.001 0G adds to the round&apos;s totalPool.
+                You can hedge across multiple bots in the same round.
+              </p>
+            </div>
+            <div>
+              <div className="font-mono text-xs text-pink mb-2" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>
+                No winner = full refund
+              </div>
+              <p className="font-mono text-xs text-secondary" style={{ lineHeight: 1.7 }}>
+                If no bot&apos;s range contained the settlement BTC price, the contract auto-refunds 100% of every bet.
+                No fees taken on a no-winner round.
+              </p>
+            </div>
+            <div>
+              <div className="font-mono text-xs text-green mb-2" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>
+                Score = tightness
+              </div>
+              <p className="font-mono text-xs text-secondary" style={{ lineHeight: 1.7 }}>
+                Score is computed on-chain as <span className="text-green">SCORE_PRECISION / rangeWidth</span>.
+                Tighter ranges score higher and earn a bigger share of the pool slice.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Two Paths — Creator vs Bettor */}
+      <section className="container section">
+        <div className="section-header">
+          <h2 className="section-title">Two Ways to Play</h2>
+          <p className="section-subtitle">Build a bot. Back a bot. Earn either way.</p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 20 }}>
+          <div className="glass-card" style={{ padding: 32, borderLeft: "3px solid var(--neon-cyan)" }}>
+            <div className="font-mono text-xs text-cyan mb-2" style={{ letterSpacing: 2, textTransform: "uppercase" }}>
+              Path 01
+            </div>
+            <h3 className="font-display mb-4" style={{ fontSize: 22, letterSpacing: 1 }}>Build a Bot</h3>
+            <p className="font-mono text-xs text-secondary mb-4" style={{ lineHeight: 1.7 }}>
+              You write the strategy. The bot competes. You earn forever from the wins.
+            </p>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-cyan font-bold">DO</span>
+                <span className="text-secondary"> — Write a strategy prompt, ship it to 0G Storage, register on-chain.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-cyan font-bold">EARN</span>
+                <span className="text-secondary"> — 10% rev-share on every winning round, withdrawable any time.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-cyan font-bold">COMPETE</span>
+                <span className="text-secondary"> — Climb the leaderboard. Win-rate is on-chain forever.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-cyan font-bold">COST</span>
+                <span className="text-secondary"> — One-time 0.001 0G registration fee (spam prevention).</span>
+              </li>
+            </ul>
+            <div style={{ marginTop: 24 }}>
+              <Link href="/create" className="btn btn-primary btn-sm">Build a Bot</Link>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: 32, borderLeft: "3px solid var(--neon-pink)" }}>
+            <div className="font-mono text-xs text-pink mb-2" style={{ letterSpacing: 2, textTransform: "uppercase" }}>
+              Path 02
+            </div>
+            <h3 className="font-display mb-4" style={{ fontSize: 22, letterSpacing: 1 }}>Back a Bot</h3>
+            <p className="font-mono text-xs text-secondary mb-4" style={{ lineHeight: 1.7 }}>
+              You read the bots&apos; reasoning. You pick the one you trust. You take a slice of the pool when they&apos;re right.
+            </p>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-pink font-bold">DO</span>
+                <span className="text-secondary"> — Read TEE-verified reasoning traces. Pick the bot you trust. Stake 0G.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-pink font-bold">EARN</span>
+                <span className="text-secondary"> — Share of 85% pool, scaled by your bet size and the bot&apos;s tightness score.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-pink font-bold">PROTECT</span>
+                <span className="text-secondary"> — Full refund when no bot&apos;s range contains the settlement price.</span>
+              </li>
+              <li className="font-mono text-xs mb-2" style={{ lineHeight: 1.7 }}>
+                <span className="text-pink font-bold">COST</span>
+                <span className="text-secondary"> — Minimum 0.001 0G per bet. Hedge across multiple bots if you want.</span>
+              </li>
+            </ul>
+            <div style={{ marginTop: 24 }}>
+              <Link href="/arena" className="btn btn-secondary btn-sm">Enter Arena</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Powered by 0G */}
       <section className="container section">
         <div className="section-header">
@@ -183,6 +328,79 @@ export default function Home() {
           <div className="stack-card glass-card">
             <div className="stack-badge badge badge-green">Chain</div>
             <p className="stack-desc">Smart contracts handle betting pools, scoring, and payouts. Fully transparent on 0G Chain.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Roadmap */}
+      <section className="container section">
+        <div className="section-header">
+          <h2 className="section-title">Roadmap</h2>
+          <p className="section-subtitle">v1 ships verifiability. v2 turns it into a real product.</p>
+        </div>
+
+        <div className="stack-grid">
+          <div className="stack-card glass-card" style={{ borderLeft: "3px solid var(--neon-green)", padding: 28, textAlign: "left" }}>
+            <div className="badge badge-green mb-4" style={{ display: "inline-block" }}>SHIPPED · V1</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                BotRegistry + BettingPool live on 0G Mainnet
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                TEE-verified Judge + bot inference per round
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Strategy prompts + reasoning traces on 0G Storage
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Creator dashboard with rev-share withdraw
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                57/57 Foundry tests passing
+              </li>
+            </ul>
+          </div>
+
+          <div className="stack-card glass-card" style={{ borderLeft: "3px solid var(--neon-cyan)", padding: 28, textAlign: "left" }}>
+            <div className="badge badge-cyan mb-4" style={{ display: "inline-block" }}>NEXT · POLISH</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                EIP-712 admin auth on /api/rounds
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Cron-triggered settle at the actual target time
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Bot detail page with win-rate timeline
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Round history browser
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Persistent Judge cache
+              </li>
+            </ul>
+          </div>
+
+          <div className="stack-card glass-card" style={{ borderLeft: "3px solid var(--neon-pink)", padding: 28, textAlign: "left" }}>
+            <div className="badge badge-pink mb-4" style={{ display: "inline-block" }}>V2 · POST-HACKATHON</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Continuous arena: 3 rounds always in flight
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Weekly seasonal championships (168 rounds)
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Top-3 creators split a seasonal prize pool
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Anti-Sybil: 1 bot/creator/round, progressive fees
+              </li>
+              <li className="font-mono text-xs text-secondary mb-2" style={{ lineHeight: 1.7 }}>
+                Permissionless settlement after target time
+              </li>
+            </ul>
           </div>
         </div>
       </section>
