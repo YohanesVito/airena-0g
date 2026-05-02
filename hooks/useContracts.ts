@@ -148,6 +148,35 @@ export function useRoundPredictions(roundId: number, botIds: readonly bigint[]) 
   });
 }
 
+export function useRoundBetCount(roundId: number) {
+  return useReadContract({
+    address: bettingPoolAddress,
+    abi: BETTING_POOL_ABI,
+    functionName: "getRoundBetCount",
+    args: [BigInt(roundId)],
+    query: { enabled: roundId > 0 },
+  });
+}
+
+// Multicall all Bet structs for a round so the UI can filter to a single
+// bettor's entries client-side. The contract has no getBetsByBettor view,
+// so this is the cheapest way to derive "does this wallet have any bet
+// here" without indexing logs off-chain. Bet count caps the multicall
+// length so an empty round costs nothing.
+export function useRoundBets(roundId: number, count: number) {
+  const contracts = Array.from({ length: count }, (_, i) => ({
+    address: bettingPoolAddress,
+    abi: BETTING_POOL_ABI,
+    functionName: "getBet",
+    args: [BigInt(roundId), BigInt(i)],
+  }));
+  return useReadContracts({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    contracts: contracts as any,
+    query: { enabled: roundId > 0 && count > 0 },
+  });
+}
+
 export function useBotPoolSize(roundId: number, botId: number) {
   return useReadContract({
     address: bettingPoolAddress,

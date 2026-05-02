@@ -11,6 +11,8 @@ import {
   useRoundBots,
   useActiveBots,
   useRoundPredictions,
+  useRoundBetCount,
+  useRoundBets,
   usePlaceBet,
   useClaimWinnings,
   useHasClaimed,
@@ -737,6 +739,42 @@ export default function ArenaClient() {
     return sum;
   }, [predictionData, botIds]);
 
+  // Decide whether the connected wallet has anything to claim in this round,
+  // so we can hide the claim card from non-bettors and from bettors whose
+  // only bets were on losing bots. The contract auto-refunds when no bot
+  // wins (totalWinScore === 0), so any bettor in that case is eligible.
+  const { data: roundBetCount } = useRoundBetCount(currentRoundId);
+  const betCountNum = Number((roundBetCount as bigint | undefined) ?? 0n);
+  const { data: roundBetsData } = useRoundBets(currentRoundId, betCountNum);
+
+  const claimEligibility = useMemo<{
+    canClaim: boolean;
+    isRefund: boolean;
+  }>(() => {
+    if (!address || status !== 3 || !roundBetsData) {
+      return { canClaim: false, isRefund: false };
+    }
+    type BetTuple = { bettor: string; botId: bigint; amount: bigint; claimed: boolean };
+    const userBets: BetTuple[] = [];
+    for (const r of roundBetsData) {
+      const b = r.result as BetTuple | undefined;
+      if (b && b.bettor.toLowerCase() === address.toLowerCase()) userBets.push(b);
+    }
+    if (userBets.length === 0) return { canClaim: false, isRefund: false };
+
+    if (totalWinScore === 0) return { canClaim: true, isRefund: true };
+
+    const winningBotIds = new Set<number>();
+    if (predictionData) {
+      for (let i = 0; i < botIds.length; i++) {
+        const pred = predictionData[i * 2]?.result as { score?: bigint } | undefined;
+        if (pred && Number(pred.score ?? 0n) > 0) winningBotIds.add(Number(botIds[i]));
+      }
+    }
+    const hasWinningBet = userBets.some((b) => winningBotIds.has(Number(b.botId)));
+    return { canClaim: hasWinningBet, isRefund: false };
+  }, [address, status, roundBetsData, totalWinScore, predictionData, botIds]);
+
   // Drive staged progress text for slow admin actions so the user has
   // something to watch instead of a frozen spinner. Stages advance on a
   // timer based on STAGES[*].afterSec (rough but conveys what's happening).
@@ -1052,14 +1090,17 @@ export default function ArenaClient() {
       </div>
       ) : null}
 
-      {/* Claim — disabled once the user has claimed (read from chain so it
-          persists across reloads, plus the in-session claimSuccess flag for
-          immediate feedback before the chain read refreshes). */}
-      {status === 3 && address ? (
+      {/* Claim — only rendered for wallets with at least one winning bet
+          (or any bet when the round had no winner and bets are refunded).
+          Disabled once claimed; on-chain hasClaimed flag persists the
+          disabled state across reloads, claimSuccess covers the gap before
+          the chain read refreshes. */}
+      {status === 3 && address && claimEligibility.canClaim ? (
         <div className="glass-card mb-6" style={{ padding: 16, textAlign: "center" }}>
           {(() => {
             const alreadyClaimed = hasClaimedOnChain === true || claimSuccess;
             const busy = claimPending || claimConfirming;
+            const idleLabel = claimEligibility.isRefund ? "💰 Claim Refund" : "🏆 Claim Winnings";
             return (
               <>
                 <button
@@ -1071,7 +1112,7 @@ export default function ArenaClient() {
                   {claimPending ? "✍ Confirm in wallet…"
                     : claimConfirming ? "⏳ Confirming on chain…"
                     : alreadyClaimed ? "✓ Already Claimed"
-                    : "🏆 Claim Winnings"}
+                    : idleLabel}
                 </button>
                 {alreadyClaimed ? (
                   <div className="text-green font-mono text-xs mt-2" style={{ opacity: 0.7 }}>
