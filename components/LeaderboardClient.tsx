@@ -26,7 +26,17 @@ export default function LeaderboardClient() {
       <div className="glass-card table-container">
         <table>
           <thead>
-            <tr><th>#</th><th>Bot</th><th>Creator</th><th>Win Rate</th><th>Avg Score</th><th>Rounds</th><th>Status</th></tr>
+            <tr>
+              <th>#</th>
+              <th>Bot</th>
+              <th>Creator</th>
+              <th>Win Rate</th>
+              <th title="Average BTC range width across winning rounds — smaller is tighter, better bots">
+                Avg Range
+              </th>
+              <th>Rounds</th>
+              <th>Status</th>
+            </tr>
           </thead>
           <tbody>
             {isLoading ? (
@@ -35,8 +45,20 @@ export default function LeaderboardClient() {
               sortedBots.map((bot, idx) => {
                 const rounds = Number(bot.totalRounds);
                 const wins = Number(bot.wins);
+                const totalScore = Number(bot.totalScore);
                 const winRate = rounds > 0 ? ((wins / rounds) * 100).toFixed(1) : "—";
-                const avgScore = rounds > 0 ? (Number(bot.totalScore) / rounds).toFixed(1) : "—";
+                // Translate raw on-chain score to a USD range width that
+                // viewers can actually interpret. Score formula in
+                // BettingPool.sol: score = SCORE_PRECISION / rangeCents
+                // (SCORE_PRECISION=1e12, rangeCents in USD-cents). Inverting
+                // and converting to dollars: rangeUsd = 1e10 / avgScore.
+                // wins (not rounds) is the divisor because totalScore only
+                // accumulates on rounds the bot won. Same translation as
+                // CreatorClient — keep them in sync.
+                const avgRangeUsd =
+                  wins > 0 && totalScore > 0
+                    ? Math.round(1e10 / (totalScore / wins))
+                    : null;
                 const colors = ["var(--neon-cyan)", "var(--neon-pink)", "var(--neon-green)"];
                 return (
                   <tr key={bot.id.toString()}>
@@ -44,7 +66,13 @@ export default function LeaderboardClient() {
                     <td><span className="font-display" style={{ fontSize: 13, letterSpacing: 0.5 }}>{bot.name}</span></td>
                     <td><span className="font-mono text-muted" style={{ fontSize: 11 }}>{shortenAddress(bot.creator)}</span></td>
                     <td><span style={{ color: rounds === 0 ? "var(--text-muted)" : wins / rounds >= 0.5 ? "var(--neon-green)" : "var(--neon-pink)" }}>{winRate}{rounds > 0 ? "%" : ""}</span></td>
-                    <td>{avgScore}</td>
+                    <td>
+                      {avgRangeUsd !== null ? (
+                        <span className="font-mono">${avgRangeUsd.toLocaleString("en-US")}</span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
                     <td>{rounds}</td>
                     <td><span className={`badge ${bot.active ? "badge-green" : ""}`} style={{ fontSize: 10 }}>{bot.active ? "Active" : "Inactive"}</span></td>
                   </tr>
