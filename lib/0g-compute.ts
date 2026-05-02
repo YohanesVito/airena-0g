@@ -145,7 +145,7 @@ export async function runZGInference(
           verified: !!verified,
         };
         console.log(
-          `[${tag}] TEE ${verified ? "✓ verified" : "✗ unverified"} (signer ${sigData.signing_address})`
+          `[${tag}] TEE ${verified ? "verified" : "unverified"} (signer ${sigData.signing_address})`
         );
       }
     } catch (err) {

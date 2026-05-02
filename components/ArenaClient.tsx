@@ -30,29 +30,29 @@ import type { ReasoningTraceData } from "@/lib/0g-storage";
 // Used to drive the multi-step progress display so the user isn't left
 // staring at a frozen spinner.
 const PREDICT_STAGES: { label: string; afterSec: number }[] = [
-  { label: "⚖ 0G Judge AI inferring volatility zones…", afterSec: 0 },
-  { label: "🔐 Verifying Judge attestation in TEE…", afterSec: 15 },
-  { label: "🤖 Bot 1 picking a range within the Judge zones…", afterSec: 25 },
-  { label: "💾 Storing reasoning trace on 0G Storage…", afterSec: 50 },
-  { label: "🤖 Bot 2 picking a range within the Judge zones…", afterSec: 75 },
-  { label: "💾 Storing reasoning trace on 0G Storage…", afterSec: 100 },
-  { label: "✓ Submitting predictions on-chain & opening betting…", afterSec: 120 },
+  { label: "0G Judge AI inferring volatility zones…", afterSec: 0 },
+  { label: "Verifying Judge attestation in TEE…", afterSec: 15 },
+  { label: "Bot 1 picking a range within the Judge zones…", afterSec: 25 },
+  { label: "Storing reasoning trace on 0G Storage…", afterSec: 50 },
+  { label: "Bot 2 picking a range within the Judge zones…", afterSec: 75 },
+  { label: "Storing reasoning trace on 0G Storage…", afterSec: 100 },
+  { label: "Submitting predictions on-chain & opening betting…", afterSec: 120 },
 ];
 
 // Settlement is much shorter (~25s for 2 bots): one settleRound tx,
 // then one updateBotStats tx per bot.
 const SETTLE_STAGES: { label: string; afterSec: number }[] = [
-  { label: "📡 Fetching settlement BTC price from CoinGecko…", afterSec: 0 },
-  { label: "⛓ settleRound() — scoring predictions on-chain…", afterSec: 3 },
-  { label: "🤖 Updating bot stats (wins / total score)…", afterSec: 12 },
-  { label: "✓ Round settled — bettors can now claim winnings", afterSec: 22 },
+  { label: "Fetching settlement BTC price from CoinGecko…", afterSec: 0 },
+  { label: "settleRound() — scoring predictions on-chain…", afterSec: 3 },
+  { label: "Updating bot stats (wins / total score)…", afterSec: 12 },
+  { label: "Round settled — bettors can now claim winnings", afterSec: 22 },
 ];
 
 // New Round is the fastest action (~6-10s, single createRound tx).
 const CREATE_STAGES: { label: string; afterSec: number }[] = [
-  { label: "✍ Signing createRound() with admin key…", afterSec: 0 },
-  { label: "⛓ Awaiting block confirmation on 0G chain…", afterSec: 3 },
-  { label: "✓ Round created — click Run Predictions next", afterSec: 8 },
+  { label: "Signing createRound() with admin key…", afterSec: 0 },
+  { label: "Awaiting block confirmation on 0G chain…", afterSec: 3 },
+  { label: "Round created — click Run Predictions next", afterSec: 8 },
 ];
 
 const BtcChart = dynamic(() => import("@/components/BtcChart"), { ssr: false });
@@ -195,7 +195,7 @@ function JudgePanel({ judge, settled }: { judge: JudgeData | null; settled: bool
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div className="font-display" style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.85)", textTransform: "uppercase" }}>
-            ⚖ 0G Judge AI
+            0G Judge AI
           </div>
           <div className="font-mono text-xs text-muted" style={{ marginTop: 4, lineHeight: 1.6 }}>
             {settled
@@ -205,7 +205,7 @@ function JudgePanel({ judge, settled }: { judge: JudgeData | null; settled: bool
         </div>
         {tee ? (
           <div
-            title={`Verified by 0G Compute TEE\nSigner:   ${tee.signer}\nChat ID:  ${tee.chatID}\nSig:      ${tee.signature.slice(0, 24)}…\nStatus:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unverified"}`}
+            title={`Verified by 0G Compute TEE\nSigner:   ${tee.signer}\nChat ID:  ${tee.chatID}\nSig:      ${tee.signature.slice(0, 24)}…\nStatus:   ${tee.verified ? "recovered address matches contract" : "unverified"}`}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "6px 10px",
@@ -215,7 +215,7 @@ function JudgePanel({ judge, settled }: { judge: JudgeData | null; settled: bool
             }}
           >
             <span style={{ color: tee.verified ? "var(--neon-green)" : "var(--neon-pink)", fontSize: 12 }}>
-              {tee.verified ? "✓" : "⚠"}
+              {tee.verified ? "OK" : "!"}
             </span>
             <span className="font-mono" style={{ fontSize: 10, color: tee.verified ? "var(--neon-green)" : "var(--neon-pink)", letterSpacing: 0.8, fontWeight: 600 }}>
               VERIFIED · 0G TEE
@@ -267,7 +267,7 @@ function TEEBadge({ reasoningHash }: { reasoningHash: string | undefined }) {
   if (loading && !tee) {
     return (
       <div className="font-mono text-xs text-muted" style={{ marginTop: 8, opacity: 0.6 }}>
-        ⟳ fetching TEE attestation…
+        fetching TEE attestation…
       </div>
     );
   }
@@ -280,7 +280,7 @@ Signer:   ${tee.signer}
 Chat ID:  ${tee.chatID}
 Signed:   ${signedPreview}
 Sig:      ${tee.signature.slice(0, 24)}…
-Status:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unverified"}`;
+Status:   ${tee.verified ? "recovered address matches contract" : "unverified"}`;
 
   const ok = tee.verified;
   const accent = ok ? "rgba(57,255,20" : "rgba(255,45,120"; // green vs pink
@@ -301,7 +301,7 @@ Status:   ${tee.verified ? "✓ recovered address matches contract" : "✗ unver
       }}
     >
       <span style={{ color: ok ? "var(--neon-green)" : "var(--neon-pink)", fontSize: 12 }}>
-        {ok ? "✓" : "⚠"}
+        {ok ? "OK" : "!"}
       </span>
       <span
         className="font-mono"
@@ -509,7 +509,7 @@ function BotBattleCard({
         </div>
         {isSettled ? (
           <span className={`badge ${hasWon ? "badge-green" : "badge-pink"}`} style={{ fontSize: 10 }}>
-            {hasWon ? "✓ WON" : "✗ LOST"}
+            {hasWon ? "WON" : "LOST"}
           </span>
         ) : (
           <div style={{
@@ -566,7 +566,7 @@ function BotBattleCard({
                 const sharePct = (score / totalWinScore) * 100;
                 return (
                   <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--neon-green)" }}>
-                    ✓ Pool share: {sharePct.toFixed(1)}%
+                    Pool share: {sharePct.toFixed(1)}%
                     <span style={{ marginLeft: 6, opacity: 0.5 }}>
                       (accuracy {formatScoreCompact(score)})
                     </span>
@@ -576,13 +576,13 @@ function BotBattleCard({
               if (!hasWon && totalWinScore > 0) {
                 return (
                   <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--neon-pink)" }}>
-                    ✗ Out of range — winners take the pool
+                    Out of range — winners take the pool
                   </div>
                 );
               }
               return (
                 <div className="font-mono text-xs" style={{ marginTop: 8, color: "var(--text-muted)" }}>
-                  ✗ Out of range — all bets refunded
+                  Out of range — all bets refunded
                 </div>
               );
             })()
@@ -640,13 +640,13 @@ function BotBattleCard({
             onClick={() => placeBet(roundId, botId, betAmount)}
             disabled={isPending || isConfirming}
           >
-            {isPending ? "..." : isConfirming ? "⏳" : "BET"}
+            {isPending ? "..." : isConfirming ? "..." : "BET"}
           </button>
         </div>
       ) : null}
 
       {isSuccess ? (
-        <div className="text-green font-mono text-xs mt-2" style={{ textAlign: "center" }}>✓ Bet placed!</div>
+        <div className="text-green font-mono text-xs mt-2" style={{ textAlign: "center" }}>Bet placed.</div>
       ) : null}
     </div>
   );
@@ -860,12 +860,12 @@ export default function ArenaClient() {
       setRefreshKey((k) => k + 1);
       const ok =
         action === "create"
-          ? "✓ New round created. Click Run Predictions next."
+          ? "New round created. Click Run Predictions next."
           : action === "predict"
-            ? "✓ Predictions submitted, betting is OPEN."
+            ? "Predictions submitted, betting is OPEN."
             : action === "settle"
-              ? "✓ Round settled. Bettors can now claim winnings."
-              : "✓ Done.";
+              ? "Round settled. Bettors can now claim winnings."
+              : "Done.";
       setActionMessage({ kind: "success", text: ok });
     } catch (err) {
       console.error(`[Admin] ${action} failed:`, err);
@@ -914,7 +914,7 @@ export default function ArenaClient() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 className="section-title"><span className="text-cyan">⚔</span> Arena</h1>
+          <h1 className="section-title">Arena</h1>
           <p className="section-subtitle font-mono" style={{ marginBottom: 0 }}>
             AI bots battle on BTC price predictions
           </p>
@@ -982,11 +982,11 @@ export default function ArenaClient() {
           <span className="font-mono text-xs text-muted" style={{ letterSpacing: 1 }}>ADMIN //</span>
           <button className="btn btn-primary btn-sm" onClick={() => handleAdminAction("create")}
             disabled={!!adminLoading || (status >= 0 && status < 3)}>
-            {adminLoading === "create" ? "⏳ Creating round…" : "1. New Round"}
+            {adminLoading === "create" ? "Creating round…" : "1. New Round"}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => handleAdminAction("predict")}
             disabled={!!adminLoading || status > 1}>
-            {adminLoading === "predict" ? "⏳ Running AI… (~2 min)" : "2. Run Predictions"}
+            {adminLoading === "predict" ? "Running AI… (~2 min)" : "2. Run Predictions"}
           </button>
           <button className="btn btn-sm" style={{
             background: "var(--neon-green)", color: "#000", fontFamily: "var(--font-display)",
@@ -994,7 +994,7 @@ export default function ArenaClient() {
             border: "none", borderRadius: 8, cursor: "pointer",
             opacity: (!!adminLoading || status !== 2) ? 0.4 : 1,
           }} onClick={() => handleAdminAction("settle")} disabled={!!adminLoading || status !== 2}>
-            {adminLoading === "settle" ? "⏳ Settling…" : "3. Settle"}
+            {adminLoading === "settle" ? "Settling…" : "3. Settle"}
           </button>
         </div>
 
@@ -1100,7 +1100,7 @@ export default function ArenaClient() {
           {(() => {
             const alreadyClaimed = hasClaimedOnChain === true || claimSuccess;
             const busy = claimPending || claimConfirming;
-            const idleLabel = claimEligibility.isRefund ? "💰 Claim Refund" : "🏆 Claim Winnings";
+            const idleLabel = claimEligibility.isRefund ? "Claim Refund" : "Claim Winnings";
             return (
               <>
                 <button
@@ -1109,9 +1109,9 @@ export default function ArenaClient() {
                   disabled={busy || alreadyClaimed}
                   style={alreadyClaimed ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 >
-                  {claimPending ? "✍ Confirm in wallet…"
-                    : claimConfirming ? "⏳ Confirming on chain…"
-                    : alreadyClaimed ? "✓ Already Claimed"
+                  {claimPending ? "Confirm in wallet…"
+                    : claimConfirming ? "Confirming on chain…"
+                    : alreadyClaimed ? "Already Claimed"
                     : idleLabel}
                 </button>
                 {alreadyClaimed ? (
@@ -1127,7 +1127,7 @@ export default function ArenaClient() {
 
       {/* Bot Battle Grid */}
       <h2 className="font-display mb-4" style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase" }}>
-        <span className="text-pink">⟐</span> Competing Bots
+        Competing Bots
         <span className="font-mono text-xs text-muted" style={{ marginLeft: 12, fontWeight: 400 }}>
           {botIds.length} / {(activeBots as any[])?.length ?? 0} active
         </span>
@@ -1149,7 +1149,6 @@ export default function ArenaClient() {
         </div>
       ) : (
         <div className="glass-card" style={{ textAlign: "center", padding: 56, opacity: 0.6 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
           <div className="font-display" style={{ fontSize: 14, letterSpacing: 1, marginBottom: 8 }}>
             {currentRoundId === 0 ? "No rounds created yet" : "Waiting for bot predictions..."}
           </div>

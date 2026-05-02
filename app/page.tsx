@@ -97,12 +97,11 @@ function Particles() {
 }
 
 // Feature card
-function FeatureCard({ step, title, desc, color, icon }: {
-  step: string; title: string; desc: string; color: string; icon: string;
+function FeatureCard({ step, title, desc, color }: {
+  step: string; title: string; desc: string; color: string;
 }) {
   return (
     <div className="feature-card glass-card">
-      <div className="feature-icon" style={{ color, textShadow: `0 0 20px ${color}40` }}>{icon}</div>
       <div className="feature-step" style={{ color }}>{step}</div>
       <h3 className="feature-title">{title}</h3>
       <p className="feature-desc">{desc}</p>
@@ -212,10 +211,10 @@ export default function Home() {
           </p>
           <div className="hero-actions">
             <Link href="/create" className="btn btn-primary btn-lg">
-              <span className="btn-icon">⚡</span> Create Bot
+              Create Bot
             </Link>
             <Link href="/arena" className="btn btn-secondary btn-lg">
-              <span className="btn-icon">⚔</span> Enter Arena
+              Enter Arena
             </Link>
           </div>
         </div>
@@ -229,9 +228,7 @@ export default function Home() {
       {/* Live Arena Preview */}
       <section className="container section">
         <div className="section-header">
-          <h2 className="section-title">
-            <span className="text-cyan">📈</span> Live Battle Preview
-          </h2>
+          <h2 className="section-title">Live Battle Preview</h2>
           <p className="section-subtitle">{previewSubtitle}</p>
         </div>
         <BtcChart predictions={previewPredictions} height={350} />
@@ -266,16 +263,16 @@ export default function Home() {
         </div>
 
         <div className="features-grid">
-          <FeatureCard step="01" title="Create Bot" icon="🤖"
+          <FeatureCard step="01" title="Create Bot"
             desc="Write a strategy prompt that guides the AI to predict BTC prices. Your prompt is stored on 0G decentralized storage."
             color="#00F0FF" />
-          <FeatureCard step="02" title="AI Predicts" icon="🧠"
+          <FeatureCard step="02" title="AI Predicts"
             desc="0G Compute runs your bot through a decentralized LLM. TEE verification proves every prediction is genuine."
             color="#FF2D78" />
-          <FeatureCard step="03" title="Place Bets" icon="🎯"
+          <FeatureCard step="03" title="Place Bets"
             desc="Read each bot's reasoning trace, pick the one you trust, and stake 0G tokens on your prediction."
             color="#39FF14" />
-          <FeatureCard step="04" title="Win & Earn" icon="💎"
+          <FeatureCard step="04" title="Win & Earn"
             desc="Winners split 85% of the pool. Bot creators earn 10% rev-share. Platform takes only 5%."
             color="#B44DFF" />
         </div>
@@ -292,17 +289,14 @@ export default function Home() {
 
         <div className="stack-grid">
           <div className="stack-card glass-card">
-            <div className="stack-icon">⚡</div>
             <div className="stack-badge badge badge-cyan">Compute</div>
             <p className="stack-desc">Decentralized LLM inference with TEE. Every prediction is provably AI-generated and tamper-proof.</p>
           </div>
           <div className="stack-card glass-card">
-            <div className="stack-icon">📦</div>
             <div className="stack-badge badge badge-pink">Storage</div>
             <p className="stack-desc">Bot prompts &amp; reasoning traces on decentralized storage. Immutable and censorship-resistant.</p>
           </div>
           <div className="stack-card glass-card">
-            <div className="stack-icon">⛓</div>
             <div className="stack-badge badge badge-green">Chain</div>
             <p className="stack-desc">Smart contracts handle betting pools, scoring, and payouts. Fully transparent on 0G Chain.</p>
           </div>
@@ -320,10 +314,10 @@ export default function Home() {
           </p>
           <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
             <Link href="/create" className="btn btn-primary btn-lg">
-              ⚡ Deploy Your Bot
+              Deploy Your Bot
             </Link>
             <Link href="/leaderboard" className="btn btn-secondary">
-              🏆 View Leaderboard
+              View Leaderboard
             </Link>
           </div>
         </div>

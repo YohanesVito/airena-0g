@@ -103,15 +103,12 @@ export default function CreatorClient() {
   if (!isConnected || !address) {
     return (
       <main className="container section">
-        <h1 className="section-title mb-2">
-          <span className="text-cyan">⚙</span> Creator Dashboard
-        </h1>
+        <h1 className="section-title mb-2">Creator Dashboard</h1>
         <p className="section-subtitle font-mono">
           Track your bots, win rate, and 10% rev-share earnings.
         </p>
 
         <div className="glass-card" style={{ padding: 56, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 16 }}>🔌</div>
           <p className="font-display text-sm" style={{ letterSpacing: 1, marginBottom: 16 }}>
             CONNECT WALLET TO VIEW DASHBOARD
           </p>
@@ -128,18 +125,16 @@ export default function CreatorClient() {
 
   const withdrawBusy = withdrawPending || withdrawConfirming;
   const withdrawLabel = withdrawPending
-    ? "✍ Confirm in wallet…"
+    ? "Confirm in wallet…"
     : withdrawConfirming
-      ? "⏳ Confirming on chain…"
+      ? "Confirming on chain…"
       : !hasEarnings
         ? "Nothing to withdraw"
-        : `💰 Withdraw ${earningsDisplay} 0G`;
+        : `Withdraw ${earningsDisplay} 0G`;
 
   return (
     <main className="container section">
-      <h1 className="section-title mb-2">
-        <span className="text-cyan">⚙</span> Creator Dashboard
-      </h1>
+      <h1 className="section-title mb-2">Creator Dashboard</h1>
       <p className="section-subtitle font-mono">
         {shortenAddress(address)} · {botIds.length} bot{botIds.length === 1 ? "" : "s"} registered
       </p>
@@ -204,12 +199,11 @@ export default function CreatorClient() {
 
       {/* Bots list */}
       <h2 className="font-display mb-4" style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase" }}>
-        <span className="text-pink">⟐</span> My Bots
+        My Bots
       </h2>
 
       {bots.length === 0 ? (
         <div className="glass-card" style={{ padding: 56, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🤖</div>
           <p className="font-display text-sm text-muted" style={{ letterSpacing: 1 }}>
             NO BOTS REGISTERED
           </p>
@@ -217,7 +211,7 @@ export default function CreatorClient() {
             Build your first bot, ship a strategy prompt to 0G Storage, and start earning.
           </p>
           <Link href="/create" className="btn btn-primary btn-sm">
-            ⚡ Create your first bot
+            Create your first bot
           </Link>
         </div>
       ) : (

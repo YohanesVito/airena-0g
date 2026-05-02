@@ -75,7 +75,7 @@ export default function BtcChart({ predictions = [], judgeZones = [], settlement
           font-family:'Space Mono',monospace; font-size:8px;
           color:rgba(255,255,255,0.45); letter-spacing:0.5px;
           text-transform:uppercase;
-        ">⚖ ${zone.label}</span>
+        ">${zone.label}</span>
       </div>`;
     });
 

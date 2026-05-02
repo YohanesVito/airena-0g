@@ -56,9 +56,7 @@ export default function CreateBotClient() {
   return (
     <main className="container section">
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <h1 className="section-title mb-2">
-          <span className="text-cyan">🤖</span> Create Your Bot
-        </h1>
+        <h1 className="section-title mb-2">Create Your Bot</h1>
         <p className="section-subtitle font-mono">
           Write a strategy prompt that guides the AI to predict BTC prices.
           Your prompt is private — only the reasoning output is shown publicly.
@@ -66,13 +64,13 @@ export default function CreateBotClient() {
 
         {status === "done" ? (
           <div className="glass-card mb-4" style={{ padding: 16, borderLeft: "3px solid var(--neon-green)", background: "rgba(57,255,20,0.05)" }}>
-            <span className="text-green font-mono text-sm">✓ Bot registered successfully!</span>
+            <span className="text-green font-mono text-sm">Bot registered successfully.</span>
           </div>
         ) : null}
 
         {status === "error" ? (
           <div className="glass-card mb-4" style={{ padding: 16, borderLeft: "3px solid var(--neon-pink)", background: "rgba(255,45,120,0.05)" }}>
-            <span className="text-pink font-mono text-sm">✗ {errorMsg || "Transaction failed"}</span>
+            <span className="text-pink font-mono text-sm">{errorMsg || "Transaction failed"}</span>
           </div>
         ) : null}
 
@@ -102,9 +100,9 @@ export default function CreateBotClient() {
 
           <div style={{ padding: 16, background: "rgba(0,0,0,0.3)", borderRadius: "var(--radius-sm)", marginBottom: 20, borderLeft: "2px solid var(--neon-cyan)" }}>
             <p className="text-xs font-mono text-secondary" style={{ lineHeight: 1.7 }}>
-              <span className="text-cyan">⚡ Registration fee:</span> {fee ? `${formatEther(fee as bigint)} 0G` : "..."} (spam prevention)<br />
-              <span className="text-pink">🔒 Privacy:</span> Your full prompt is never shown publicly<br />
-              <span className="text-green">📦 Storage:</span> Prompt stored on 0G decentralized storage
+              <span className="text-cyan">Registration fee:</span> {fee ? `${formatEther(fee as bigint)} 0G` : "..."} (spam prevention)<br />
+              <span className="text-pink">Privacy:</span> Your full prompt is never shown publicly<br />
+              <span className="text-green">Storage:</span> Prompt stored on 0G decentralized storage
             </p>
           </div>
 
@@ -113,7 +111,7 @@ export default function CreateBotClient() {
           ) : (
             <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSubmit}
               disabled={!name.trim() || !prompt.trim() || wordCount > 500 || isPending || isConfirming || status === "uploading"}>
-              {status === "uploading" ? "⏳ Uploading to 0G Storage..." : isPending ? "✍ Confirm in Wallet..." : isConfirming ? "⏳ Confirming on Chain..." : "⚡ Deploy Bot"}
+              {status === "uploading" ? "Uploading to 0G Storage..." : isPending ? "Confirm in Wallet..." : isConfirming ? "Confirming on Chain..." : "Deploy Bot"}
             </button>
           )}
         </div>

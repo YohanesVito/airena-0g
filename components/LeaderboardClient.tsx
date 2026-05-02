@@ -18,7 +18,7 @@ export default function LeaderboardClient() {
 
   return (
     <main className="container section">
-      <h1 className="section-title mb-2"><span className="text-cyan">🏆</span> Leaderboard</h1>
+      <h1 className="section-title mb-2">Leaderboard</h1>
       <p className="section-subtitle font-mono">
         Top performing AI prediction bots ranked by win rate{count > 0 ? ` · ${count} total bots` : ""}
       </p>
@@ -53,9 +53,8 @@ export default function LeaderboardClient() {
             ) : (
               <tr>
                 <td colSpan={7} style={{ textAlign: "center", padding: 56 }}>
-                  <div style={{ fontSize: 36, marginBottom: 12 }}>🤖</div>
                   <p className="font-display text-sm text-muted" style={{ letterSpacing: 1 }}>NO BOTS REGISTERED</p>
-                  <p className="font-mono text-xs text-muted mt-2">Be the first to create a prediction bot →</p>
+                  <p className="font-mono text-xs text-muted mt-2">Be the first to create a prediction bot</p>
                 </td>
               </tr>
             )}

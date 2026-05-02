@@ -20,26 +20,26 @@ const broker = await createZGComputeNetworkBroker(wallet);
 
 let hasLedger = false;
 try {
-  const ledger = await broker.ledger.getLedger();
-  hasLedger = true;
-  // ledger.totalBalance and ledger.availableBalance are bigints in neuron (1e18)
-  console.log(
-    `[fund-compute] existing ledger — total: ${ethers.formatEther(ledger.totalBalance)} 0G, available: ${ethers.formatEther(ledger.availableBalance)} 0G`
-  );
+ const ledger = await broker.ledger.getLedger();
+ hasLedger = true;
+ // ledger.totalBalance and ledger.availableBalance are bigints in neuron (1e18)
+ console.log(
+ `[fund-compute] existing ledger — total: ${ethers.formatEther(ledger.totalBalance)} 0G, available: ${ethers.formatEther(ledger.availableBalance)} 0G`
+ );
 } catch (err) {
-  console.log(`[fund-compute] no ledger yet (${(err as Error).message.split("\n")[0]})`);
+ console.log(`[fund-compute] no ledger yet (${(err as Error).message.split("\n")[0]})`);
 }
 
 if (!hasLedger) {
-  console.log(`[fund-compute] creating ledger with ${DEPOSIT_OG} 0G…`);
-  await broker.ledger.addLedger(DEPOSIT_OG);
-  console.log(`[fund-compute] ✓ ledger created`);
+ console.log(`[fund-compute] creating ledger with ${DEPOSIT_OG} 0G…`);
+ await broker.ledger.addLedger(DEPOSIT_OG);
+ console.log(`[fund-compute] ledger created`);
 } else if (process.env.TOPUP === "1") {
-  console.log(`[fund-compute] topping up by ${DEPOSIT_OG} 0G…`);
-  await broker.ledger.depositFund(DEPOSIT_OG);
-  console.log(`[fund-compute] ✓ deposit complete`);
+ console.log(`[fund-compute] topping up by ${DEPOSIT_OG} 0G…`);
+ await broker.ledger.depositFund(DEPOSIT_OG);
+ console.log(`[fund-compute] deposit complete`);
 } else {
-  console.log(`[fund-compute] ledger already exists — set TOPUP=1 to add more`);
+ console.log(`[fund-compute] ledger already exists — set TOPUP=1 to add more`);
 }
 
 // Transfer some funds into the inference provider sub-account so requests work.
@@ -49,16 +49,16 @@ const providers = await broker.ledger.getProvidersWithBalance("inference");
 const existing = providers.find(([addr]) => addr.toLowerCase() === PROVIDER.toLowerCase());
 const currentProviderBal = existing?.[1] ?? 0n;
 console.log(
-  `[fund-compute] provider ${PROVIDER} sub-account balance: ${ethers.formatEther(currentProviderBal)} 0G`
+ `[fund-compute] provider ${PROVIDER} sub-account balance: ${ethers.formatEther(currentProviderBal)} 0G`
 );
 
 if (currentProviderBal < MIN_PROVIDER_FUND) {
-  console.log(`[fund-compute] transferring 1 0G to provider sub-account…`);
-  await broker.ledger.transferFund(PROVIDER, "inference", MIN_PROVIDER_FUND);
-  console.log(`[fund-compute] ✓ provider sub-account funded`);
+ console.log(`[fund-compute] transferring 1 0G to provider sub-account…`);
+ await broker.ledger.transferFund(PROVIDER, "inference", MIN_PROVIDER_FUND);
+ console.log(`[fund-compute] provider sub-account funded`);
 }
 
 const finalLedger = await broker.ledger.getLedger();
 console.log(
-  `\n[fund-compute] DONE — ledger total: ${ethers.formatEther(finalLedger.totalBalance)} 0G, available: ${ethers.formatEther(finalLedger.availableBalance)} 0G`
+ `\n[fund-compute] DONE — ledger total: ${ethers.formatEther(finalLedger.totalBalance)} 0G, available: ${ethers.formatEther(finalLedger.availableBalance)} 0G`
 );
