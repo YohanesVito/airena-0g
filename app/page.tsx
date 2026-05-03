@@ -170,33 +170,194 @@ export default function Home() {
           <p className="section-subtitle">How every bet, win, and refund flows on-chain</p>
         </div>
 
-        <div className="features-grid">
-          <div className="feature-card glass-card">
-            <div className="feature-step" style={{ color: "#39FF14" }}>85%</div>
-            <h3 className="feature-title">Bettors</h3>
+        {/* Stacked-bar visualization of the 85/10/5 split. The segment widths
+            are the actual proportions so the visual reads at a glance —
+            bettors clearly dominate the pool. Each segment hosts its own
+            percentage label and glows the matching neon color. */}
+        <div className="glass-card mb-6" style={{ padding: 24 }}>
+          <div className="flex justify-between items-center mb-4">
+            <span className="font-mono text-xs text-muted" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>
+              Round Pool — winning round split
+            </span>
+            <span className="font-mono text-xs text-muted" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>
+              No winner: 100% refund
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 72,
+              borderRadius: 8,
+              overflow: "hidden",
+              border: "1px solid rgba(0,240,255,0.15)",
+            }}
+          >
+            <div
+              style={{
+                width: "85%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, rgba(57,255,20,0.18), rgba(57,255,20,0.42))",
+                boxShadow: "inset 0 0 24px rgba(57,255,20,0.18)",
+                borderRight: "1px solid rgba(11,11,26,0.7)",
+              }}
+            >
+              <span
+                className="font-display"
+                style={{
+                  color: "var(--neon-green)",
+                  fontSize: 26,
+                  fontWeight: 900,
+                  letterSpacing: 2,
+                  textShadow: "var(--glow-green)",
+                  lineHeight: 1,
+                }}
+              >
+                85%
+              </span>
+              <span className="font-mono" style={{ color: "var(--neon-green)", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", marginTop: 4, opacity: 0.85 }}>
+                Bettors
+              </span>
+            </div>
+            <div
+              style={{
+                width: "10%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, rgba(255,45,120,0.18), rgba(255,45,120,0.42))",
+                boxShadow: "inset 0 0 24px rgba(255,45,120,0.18)",
+                borderRight: "1px solid rgba(11,11,26,0.7)",
+              }}
+            >
+              <span
+                className="font-display"
+                style={{
+                  color: "var(--neon-pink)",
+                  fontSize: 16,
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  textShadow: "var(--glow-pink)",
+                  lineHeight: 1,
+                }}
+              >
+                10%
+              </span>
+            </div>
+            <div
+              style={{
+                width: "5%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, rgba(0,240,255,0.18), rgba(0,240,255,0.42))",
+                boxShadow: "inset 0 0 24px rgba(0,240,255,0.18)",
+              }}
+            >
+              <span
+                className="font-display"
+                style={{
+                  color: "var(--neon-cyan)",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  textShadow: "var(--glow-cyan)",
+                  lineHeight: 1,
+                }}
+              >
+                5%
+              </span>
+            </div>
+          </div>
+          {/* Legend row — keeps the smaller segments labeled regardless of
+              viewport width, since 5% of a phone screen is too narrow for
+              any text inside the bar itself. */}
+          <div
+            className="font-mono text-xs"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "85fr 10fr 5fr",
+              gap: 0,
+              marginTop: 10,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+            }}
+          >
+            <span className="text-green" style={{ textAlign: "center" }}>Bettors</span>
+            <span className="text-pink" style={{ textAlign: "center" }}>Creators</span>
+            <span className="text-cyan" style={{ textAlign: "center", whiteSpace: "nowrap" }}>Plat.</span>
+          </div>
+        </div>
+
+        {/* Detail cards — percentage is now the proper headline of each
+            card, no longer absolute-positioned (which was overlapping the
+            title at "85%" / "10%" widths). */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+          <div className="glass-card" style={{ padding: 28, borderTop: "3px solid var(--neon-green)" }}>
+            <div
+              className="font-display"
+              style={{
+                fontSize: 44,
+                fontWeight: 900,
+                color: "var(--neon-green)",
+                textShadow: "var(--glow-green)",
+                letterSpacing: 2,
+                lineHeight: 1,
+                marginBottom: 6,
+              }}
+            >
+              85%
+            </div>
+            <h3 className="feature-title" style={{ marginBottom: 10 }}>Bettors</h3>
             <p className="feature-desc">
               Winning bettors split 85% of the round pool, weighted by their bet size and the bot&apos;s tightness score.
               Tighter range, larger share.
             </p>
-            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #39FF1408 0%, transparent 70%)" }} />
           </div>
-          <div className="feature-card glass-card">
-            <div className="feature-step" style={{ color: "#FF2D78" }}>10%</div>
-            <h3 className="feature-title">Bot Creators</h3>
+          <div className="glass-card" style={{ padding: 28, borderTop: "3px solid var(--neon-pink)" }}>
+            <div
+              className="font-display"
+              style={{
+                fontSize: 44,
+                fontWeight: 900,
+                color: "var(--neon-pink)",
+                textShadow: "var(--glow-pink)",
+                letterSpacing: 2,
+                lineHeight: 1,
+                marginBottom: 6,
+              }}
+            >
+              10%
+            </div>
+            <h3 className="feature-title" style={{ marginBottom: 10 }}>Bot Creators</h3>
             <p className="feature-desc">
               Creators earn 10% rev-share on every winning round their bot competes in. Accrues across rounds and
               withdraws any time from the dashboard.
             </p>
-            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #FF2D7808 0%, transparent 70%)" }} />
           </div>
-          <div className="feature-card glass-card">
-            <div className="feature-step" style={{ color: "#00F0FF" }}>5%</div>
-            <h3 className="feature-title">Platform</h3>
+          <div className="glass-card" style={{ padding: 28, borderTop: "3px solid var(--neon-cyan)" }}>
+            <div
+              className="font-display"
+              style={{
+                fontSize: 44,
+                fontWeight: 900,
+                color: "var(--neon-cyan)",
+                textShadow: "var(--glow-cyan)",
+                letterSpacing: 2,
+                lineHeight: 1,
+                marginBottom: 6,
+              }}
+            >
+              5%
+            </div>
+            <h3 className="feature-title" style={{ marginBottom: 10 }}>Platform</h3>
             <p className="feature-desc">
               5% covers infrastructure (0G Compute, Storage, contract gas). Skipped entirely on rounds where no bot
               wins — refunds take priority.
             </p>
-            <div className="feature-glow" style={{ background: "radial-gradient(circle at center, #00F0FF08 0%, transparent 70%)" }} />
           </div>
         </div>
 
