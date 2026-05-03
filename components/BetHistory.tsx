@@ -15,11 +15,14 @@ const botRegistryAddress = CONTRACTS.botRegistry as `0x${string}`;
 // dashboard from making thousands of reads on a busy season.
 const ROUNDS_TO_SCAN = 10;
 
+type BetStatus = "PENDING" | "WIN" | "CLAIMED" | "REFUND" | "REFUNDED" | "LOST";
+
 type UserBetRow = {
   round: number;
   botId: bigint;
   amount: bigint;
   claimed: boolean;
+  status: BetStatus;
 };
 
 type BetTuple = {
@@ -76,24 +79,135 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
     query: { enabled: betIndexes.length > 0 },
   });
 
-  // Filter to bets owned by the connected wallet, sorted newest first.
-  const userBets = useMemo<UserBetRow[]>(() => {
-    if (!allBetsRaw) return [];
-    const out: UserBetRow[] = [];
+  // Pre-filter user-owned bets, indexed by (round, botId) so we can
+  // attach status once we know each round's settlement state and the
+  // bet's bot's score.
+  const userBetsRaw = useMemo(() => {
+    if (!allBetsRaw) return [] as { round: number; bet: BetTuple }[];
+    const out: { round: number; bet: BetTuple }[] = [];
     for (let i = 0; i < allBetsRaw.length; i++) {
       const bet = allBetsRaw[i]?.result as BetTuple | undefined;
       if (!bet || bet.bettor.toLowerCase() !== address.toLowerCase()) continue;
+      out.push({ round: betIndexes[i].round, bet });
+    }
+    return out;
+  }, [allBetsRaw, betIndexes, address]);
+
+  // Stage 3: for each unique round the user has a bet in, fetch round
+  // status + the round's full bot list. Status drives PENDING vs LOST,
+  // bot list drives Stage 4's predictions multicall that decides
+  // per-round totalWinScore (refund vs lost) and per-bet score (won
+  // vs not).
+  const uniqueRounds = useMemo(() => {
+    const set = new Set<number>();
+    for (const b of userBetsRaw) set.add(b.round);
+    return [...set].sort((a, b) => a - b);
+  }, [userBetsRaw]);
+
+  const roundContracts = useMemo(() => {
+    return uniqueRounds.flatMap((r) => [
+      {
+        address: bettingPoolAddress,
+        abi: BETTING_POOL_ABI,
+        functionName: "getRound",
+        args: [BigInt(r)],
+      },
+      {
+        address: bettingPoolAddress,
+        abi: BETTING_POOL_ABI,
+        functionName: "getRoundBots",
+        args: [BigInt(r)],
+      },
+    ]);
+  }, [uniqueRounds]);
+
+  const { data: roundDataRaw } = useReadContracts({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    contracts: roundContracts as any,
+    query: { enabled: roundContracts.length > 0 },
+  });
+
+  // Stage 4: flatten (round, botId) prediction lookups so a single
+  // multicall covers every bot in every round the user touched. The
+  // user's bet score and the round's totalWinScore both fall out.
+  const predictionLookups = useMemo(() => {
+    if (!roundDataRaw) return [] as { round: number; botId: bigint }[];
+    const out: { round: number; botId: bigint }[] = [];
+    for (let i = 0; i < uniqueRounds.length; i++) {
+      const bots = roundDataRaw[i * 2 + 1]?.result as bigint[] | undefined;
+      if (!bots) continue;
+      for (const bid of bots) out.push({ round: uniqueRounds[i], botId: bid });
+    }
+    return out;
+  }, [roundDataRaw, uniqueRounds]);
+
+  const { data: predictionsRaw } = useReadContracts({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    contracts: predictionLookups.map((p) => ({
+      address: bettingPoolAddress,
+      abi: BETTING_POOL_ABI,
+      functionName: "getPrediction",
+      args: [BigInt(p.round), p.botId],
+    })) as any,
+    query: { enabled: predictionLookups.length > 0 },
+  });
+
+  // Build round → { status, totalWinScore, scoreByBotId } so the bet
+  // status derivation below is a constant-time lookup.
+  const roundInfo = useMemo(() => {
+    const m = new Map<
+      number,
+      { status: number; totalWinScore: number; scoreByBotId: Map<string, number> }
+    >();
+    if (!roundDataRaw) return m;
+    for (let i = 0; i < uniqueRounds.length; i++) {
+      const round = uniqueRounds[i];
+      const r = roundDataRaw[i * 2]?.result as { status: number | bigint } | undefined;
+      const status = r ? Number(r.status) : -1;
+      m.set(round, { status, totalWinScore: 0, scoreByBotId: new Map() });
+    }
+    if (!predictionsRaw) return m;
+    for (let i = 0; i < predictionLookups.length; i++) {
+      const { round, botId } = predictionLookups[i];
+      const pred = predictionsRaw[i]?.result as { score?: bigint } | undefined;
+      const score = Number(pred?.score ?? 0n);
+      const bucket = m.get(round);
+      if (!bucket) continue;
+      bucket.scoreByBotId.set(botId.toString(), score);
+      if (score > 0) bucket.totalWinScore += score;
+    }
+    return m;
+  }, [roundDataRaw, predictionsRaw, uniqueRounds, predictionLookups]);
+
+  // Final user-bet rows with derived status, sorted newest first.
+  const userBets = useMemo<UserBetRow[]>(() => {
+    const out: UserBetRow[] = [];
+    for (const { round, bet } of userBetsRaw) {
+      const info = roundInfo.get(round);
+      let status: BetStatus = "PENDING";
+      if (info && info.status === 3) {
+        const myScore = info.scoreByBotId.get(bet.botId.toString()) ?? 0;
+        if (myScore > 0) {
+          status = bet.claimed ? "CLAIMED" : "WIN";
+        } else if (info.totalWinScore === 0) {
+          // No bot won → contract refunds every bet in this round.
+          status = bet.claimed ? "REFUNDED" : "REFUND";
+        } else {
+          status = "LOST";
+        }
+      }
       out.push({
-        round: betIndexes[i].round,
+        round,
         botId: bet.botId,
         amount: bet.amount,
         claimed: bet.claimed,
+        status,
       });
     }
     return out.sort((a, b) => b.round - a.round);
-  }, [allBetsRaw, betIndexes, address]);
+  }, [userBetsRaw, roundInfo]);
 
-  // Stage 3: resolve unique bot ids in user history to names.
+  // Stage 5: resolve unique bot ids in user history to names.
   const uniqueBotIds = useMemo(() => {
     const seen = new Set<string>();
     const out: bigint[] = [];
@@ -127,15 +241,18 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
     return m;
   }, [betBotsRaw, uniqueBotIds]);
 
-  // Aggregate: total staked, total claimed, count.
+  // Aggregate: total staked, count, and the only status bucket that
+  // actually requires user action — winnable + refundable bets that
+  // haven't been claimed yet. Bettors care more about "what can I
+  // collect" than the raw claimed count.
   const totals = useMemo(() => {
     let totalStakedWei = 0n;
-    let claimedCount = 0;
+    let actionable = 0;
     for (const b of userBets) {
       totalStakedWei += b.amount;
-      if (b.claimed) claimedCount++;
+      if (b.status === "WIN" || b.status === "REFUND") actionable++;
     }
-    return { totalStakedWei, claimedCount, count: userBets.length };
+    return { totalStakedWei, actionable, count: userBets.length };
   }, [userBets]);
 
   const formatStake = (wei: bigint) => {
@@ -175,8 +292,12 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
               <div className="stat-label">Total Staked (0G)</div>
             </div>
             <div className="stat-card glass-card">
-              <div className="stat-value text-cyan">{totals.claimedCount}</div>
-              <div className="stat-label">Already Claimed</div>
+              <div
+                className={totals.actionable > 0 ? "stat-value text-green" : "stat-value text-muted"}
+              >
+                {totals.actionable}
+              </div>
+              <div className="stat-label">Ready to Claim</div>
             </div>
           </div>
 
@@ -210,15 +331,7 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
                         <span className="font-mono text-green">{formatStake(bet.amount)} 0G</span>
                       </td>
                       <td>
-                        {bet.claimed ? (
-                          <span className="badge badge-cyan" style={{ fontSize: 10 }}>
-                            CLAIMED
-                          </span>
-                        ) : (
-                          <span className="badge" style={{ fontSize: 10, opacity: 0.6 }}>
-                            PENDING
-                          </span>
-                        )}
+                        <StatusBadge status={bet.status} />
                       </td>
                     </tr>
                   );
@@ -229,5 +342,29 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
         </>
       )}
     </>
+  );
+}
+
+function StatusBadge({ status }: { status: BetStatus }) {
+  // Map each bet status to a badge class + label. WIN and REFUND are
+  // the actionable states (user has 0G to collect); CLAIMED/REFUNDED
+  // are settled-positive; LOST is settled-negative; PENDING means the
+  // round hasn't settled yet.
+  const meta: Record<BetStatus, { className: string; label: string; opacity?: number }> = {
+    WIN: { className: "badge-green", label: "WIN — CLAIMABLE" },
+    CLAIMED: { className: "badge-cyan", label: "CLAIMED" },
+    REFUND: { className: "badge-pink", label: "REFUND READY" },
+    REFUNDED: { className: "badge-cyan", label: "REFUNDED" },
+    LOST: { className: "", label: "LOST", opacity: 0.5 },
+    PENDING: { className: "", label: "PENDING", opacity: 0.6 },
+  };
+  const m = meta[status];
+  return (
+    <span
+      className={`badge ${m.className}`}
+      style={{ fontSize: 10, opacity: m.opacity ?? 1 }}
+    >
+      {m.label}
+    </span>
   );
 }
