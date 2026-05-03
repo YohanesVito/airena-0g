@@ -11,6 +11,7 @@ export function Navbar() {
     { href: "/arena", label: "Arena" },
     { href: "/create", label: "Build" },
     { href: "/creator", label: "Dashboard" },
+    { href: "/profile", label: "Profile" },
     { href: "/leaderboard", label: "Leaderboard" },
   ];
 
