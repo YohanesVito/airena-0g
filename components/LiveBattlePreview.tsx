@@ -91,12 +91,15 @@ export default function LiveBattlePreview() {
   };
 
   return (
-    <section className="container section">
+    <section id="arena" className="container section">
       <div className="section-header">
+        <div className="section-num">01 / Arena</div>
         <h2 className="section-title">Live Battle Preview</h2>
         <p className="section-subtitle">{previewSubtitle}</p>
       </div>
-      <BtcChart predictions={previewPredictions} height={350} />
+      <div className="hud-frame" style={{ padding: 20 }}>
+        <BtcChart predictions={previewPredictions} height={350} />
+      </div>
       <div className="arena-preview-bots">
         {previewPredictions.map((bot) => {
           const badge = badgeFor(bot.won);

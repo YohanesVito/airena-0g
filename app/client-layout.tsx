@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
+import { SideNav } from "@/components/SideNav";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -22,6 +23,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
       <Navbar />
+      <SideNav />
       {children}
     </Providers>
   );

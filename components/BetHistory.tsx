@@ -263,74 +263,140 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
   };
 
   return (
-    <>
-      <h2 className="font-display mb-4 mt-6" style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase" }}>
-        Bet History
-        <span className="font-mono text-xs text-muted" style={{ marginLeft: 12, fontWeight: 400 }}>
-          last {scanRounds.length} round{scanRounds.length === 1 ? "" : "s"}
-        </span>
-      </h2>
+    <section style={{ marginTop: 64 }}>
+      <header style={{ marginBottom: 32 }}>
+        <div className="section-num">02 / Wallet</div>
+        <h2
+          className="font-display"
+          style={{
+            fontSize: "clamp(40px, 6vw, 72px)",
+            lineHeight: 0.92,
+            letterSpacing: -1,
+            textTransform: "uppercase",
+            margin: 0,
+            color: "var(--text-primary)",
+          }}
+        >
+          Bet History
+        </h2>
+        <p
+          className="font-mono"
+          style={{
+            marginTop: 14,
+            fontSize: 11,
+            color: "var(--text-muted)",
+            letterSpacing: 2,
+            textTransform: "uppercase",
+          }}
+        >
+          // Last {scanRounds.length} round{scanRounds.length === 1 ? "" : "s"} scanned
+          {totals.actionable > 0 && (
+            <span style={{ color: "var(--accent)", marginLeft: 18 }}>
+              · {totals.actionable} ready to claim
+            </span>
+          )}
+        </p>
+      </header>
 
       {userBets.length === 0 ? (
-        <div className="glass-card" style={{ padding: 36, textAlign: "center" }}>
-          <p className="font-display text-sm text-muted" style={{ letterSpacing: 1 }}>
-            NO BETS PLACED
+        <div
+          style={{
+            padding: "64px 32px",
+            border: "1px solid var(--border-color)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--bg-card)",
+          }}
+        >
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 11,
+              letterSpacing: 2,
+              color: "var(--text-muted)",
+              marginBottom: 16,
+              textTransform: "uppercase",
+            }}
+          >
+            // Status: No_bets_found
+          </div>
+          <p
+            className="font-display"
+            style={{
+              fontSize: 32,
+              letterSpacing: 0,
+              textTransform: "uppercase",
+              lineHeight: 1,
+              marginBottom: 16,
+              color: "var(--text-primary)",
+            }}
+          >
+            Stand back. Nothing on the line.
           </p>
-          <p className="font-mono text-xs text-muted mt-2">
-            Your wallet hasn&apos;t placed any bets in the last {ROUNDS_TO_SCAN} rounds. Head to the arena to back a bot.
+          <p style={{ color: "var(--text-secondary)", maxWidth: 460, lineHeight: 1.6 }}>
+            Your wallet hasn&apos;t placed any bets in the last {ROUNDS_TO_SCAN} rounds. Pick a bot
+            in the arena to back the next prediction.
           </p>
         </div>
       ) : (
         <>
-          <div className="stats-grid mb-4" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-            <div className="stat-card glass-card">
-              <div className="stat-value">{totals.count}</div>
-              <div className="stat-label">Bets Placed</div>
-            </div>
-            <div className="stat-card glass-card">
-              <div className="stat-value text-green">{formatStake(totals.totalStakedWei)}</div>
-              <div className="stat-label">Total Staked (0G)</div>
-            </div>
-            <div className="stat-card glass-card">
-              <div
-                className={totals.actionable > 0 ? "stat-value text-green" : "stat-value text-muted"}
-              >
-                {totals.actionable}
-              </div>
-              <div className="stat-label">Ready to Claim</div>
-            </div>
+          <div
+            className="stats-grid mb-6"
+            style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+          >
+            <Stat label="Bets placed" value={totals.count} />
+            <Stat label="Total staked / 0G" value={formatStake(totals.totalStakedWei)} />
+            <Stat
+              label="Ready to claim"
+              value={totals.actionable}
+              accent={totals.actionable > 0}
+            />
           </div>
 
-          <div className="glass-card table-container">
+          <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Round</th>
+                  <th style={{ width: 96 }}>Round</th>
                   <th>Bot</th>
-                  <th>Stake</th>
-                  <th>Claim</th>
+                  <th>Stake / 0G</th>
+                  <th style={{ textAlign: "right" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {userBets.map((bet, i) => {
-                  const botName = botNameById.get(bet.botId.toString()) ?? `bot #${bet.botId.toString()}`;
+                  const botName =
+                    botNameById.get(bet.botId.toString()) ?? `bot #${bet.botId.toString()}`;
                   return (
                     <tr key={`${bet.round}-${i}`}>
-                      <td>
-                        <span className="font-mono">#{bet.round}</span>
+                      <td style={{ color: "var(--text-muted)" }}>
+                        #{bet.round.toString().padStart(3, "0")}
                       </td>
                       <td>
-                        <span className="font-display" style={{ fontSize: 13, letterSpacing: 0.5 }}>
+                        <div
+                          className="font-display"
+                          style={{
+                            fontSize: 15,
+                            letterSpacing: 1,
+                            textTransform: "uppercase",
+                            color: "var(--text-primary)",
+                          }}
+                        >
                           {botName}
-                        </span>
-                        <span className="font-mono text-muted" style={{ fontSize: 10, marginLeft: 6 }}>
-                          (#{bet.botId.toString()})
-                        </span>
+                        </div>
+                        <div
+                          className="font-mono"
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                            marginTop: 2,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          ID: {bet.botId.toString()}
+                        </div>
                       </td>
-                      <td>
-                        <span className="font-mono text-green">{formatStake(bet.amount)} 0G</span>
-                      </td>
-                      <td>
+                      <td style={{ color: "var(--text-primary)" }}>{formatStake(bet.amount)}</td>
+                      <td style={{ textAlign: "right" }}>
                         <StatusBadge status={bet.status} />
                       </td>
                     </tr>
@@ -341,28 +407,116 @@ export default function BetHistory({ address }: { address: `0x${string}` }) {
           </div>
         </>
       )}
-    </>
+    </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string | number;
+  accent?: boolean;
+}) {
+  return (
+    <div className="stat-card">
+      <div className="stat-label">{label}</div>
+      <div
+        className="stat-value"
+        style={accent ? { color: "var(--accent)" } : undefined}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
 function StatusBadge({ status }: { status: BetStatus }) {
-  // Map each bet status to a badge class + label. WIN and REFUND are
-  // the actionable states (user has 0G to collect); CLAIMED/REFUNDED
-  // are settled-positive; LOST is settled-negative; PENDING means the
-  // round hasn't settled yet.
-  const meta: Record<BetStatus, { className: string; label: string; opacity?: number }> = {
-    WIN: { className: "badge-green", label: "WIN — CLAIMABLE" },
-    CLAIMED: { className: "badge-cyan", label: "CLAIMED" },
-    REFUND: { className: "badge-pink", label: "REFUND READY" },
-    REFUNDED: { className: "badge-cyan", label: "REFUNDED" },
-    LOST: { className: "", label: "LOST", opacity: 0.5 },
-    PENDING: { className: "", label: "PENDING", opacity: 0.6 },
+  // WIN and REFUND are the only states with an action attached, so they
+  // get the loud red accent. Settled-positive (CLAIMED/REFUNDED) get a
+  // neutral hairline pill. LOST gets ghosted so it doesn't compete.
+  // PENDING shows a pulsing live dot — the round hasn't settled yet.
+  const meta: Record<
+    BetStatus,
+    { label: string; tone: "accent" | "neutral" | "ghost" | "live" }
+  > = {
+    WIN:      { label: "Claimable",     tone: "accent" },
+    REFUND:   { label: "Refund ready",  tone: "accent" },
+    CLAIMED:  { label: "Claimed",       tone: "neutral" },
+    REFUNDED: { label: "Refunded",      tone: "neutral" },
+    LOST:     { label: "Lost",          tone: "ghost" },
+    PENDING:  { label: "Pending",       tone: "live" },
   };
   const m = meta[status];
+
+  const base: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    padding: "5px 10px",
+    borderRadius: "var(--radius-sm)",
+    border: "1px solid transparent",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    whiteSpace: "nowrap",
+  };
+
+  if (m.tone === "accent") {
+    return (
+      <span
+        style={{
+          ...base,
+          color: "var(--accent)",
+          background: "var(--accent-soft)",
+          borderColor: "var(--border-accent)",
+        }}
+      >
+        {m.label}
+      </span>
+    );
+  }
+  if (m.tone === "neutral") {
+    return (
+      <span
+        style={{
+          ...base,
+          color: "var(--text-secondary)",
+          background: "rgba(255,255,255,0.04)",
+          borderColor: "var(--border-color)",
+        }}
+      >
+        {m.label}
+      </span>
+    );
+  }
+  if (m.tone === "live") {
+    return (
+      <span
+        style={{
+          ...base,
+          color: "var(--text-secondary)",
+          background: "transparent",
+          borderColor: "var(--border-color)",
+        }}
+      >
+        <span className="status-dot live" />
+        {m.label}
+      </span>
+    );
+  }
   return (
     <span
-      className={`badge ${m.className}`}
-      style={{ fontSize: 10, opacity: m.opacity ?? 1 }}
+      style={{
+        ...base,
+        color: "var(--text-faint)",
+        background: "transparent",
+        borderColor: "var(--border-color)",
+      }}
     >
       {m.label}
     </span>

@@ -1,65 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- LEFT BOT (cyan) -->
-  <g filter="url(#glowCyan)">
-    <line x1="13" y1="8" x2="13" y2="14" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="13" cy="6.5" r="1.8" fill="#00f0ff"/>
-    <rect x="5" y="14" width="16" height="14" rx="2" fill="#0b0b1a" stroke="#00f0ff" stroke-width="2"/>
-    <rect x="7.5" y="18" width="11" height="3" rx="0.5" fill="#00f0ff"/>
-    <rect x="9" y="24" width="1.5" height="2" fill="#00f0ff"/>
-    <rect x="12.25" y="24" width="1.5" height="2" fill="#00f0ff"/>
-    <rect x="15.5" y="24" width="1.5" height="2" fill="#00f0ff"/>
-    <rect x="7" y="30" width="12" height="14" rx="2" fill="#0b0b1a" stroke="#00f0ff" stroke-width="2"/>
-    <rect x="11" y="34" width="4" height="4" rx="0.5" fill="#00f0ff"/>
-    <rect x="20" y="30" width="3" height="6" fill="#00f0ff"/>
-    <rect x="22" y="26" width="6" height="6" rx="1" fill="#00f0ff"/>
-    <rect x="8" y="46" width="4" height="10" fill="#0b0b1a" stroke="#00f0ff" stroke-width="1.8"/>
-    <rect x="14" y="46" width="4" height="10" fill="#0b0b1a" stroke="#00f0ff" stroke-width="1.8"/>
-  </g>
+  <!-- Red corner brackets — top-left and bottom-right.
+       Same diagonal-bracket signature used on .glass-card pseudo-elements. -->
+  <path d="M 4 4 H 18 M 4 4 V 18" stroke="#FF003A" stroke-width="2.5" stroke-linecap="square"/>
+  <path d="M 60 60 H 46 M 60 60 V 46" stroke="#FF003A" stroke-width="2.5" stroke-linecap="square"/>
 
-  <!-- RIGHT BOT (pink) -->
-  <g filter="url(#glowPink)">
-    <line x1="51" y1="8" x2="51" y2="14" stroke="#ff2d78" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="51" cy="6.5" r="1.8" fill="#ff2d78"/>
-    <rect x="43" y="14" width="16" height="14" rx="2" fill="#0b0b1a" stroke="#ff2d78" stroke-width="2"/>
-    <rect x="45.5" y="18" width="11" height="3" rx="0.5" fill="#ff2d78"/>
-    <rect x="47" y="24" width="1.5" height="2" fill="#ff2d78"/>
-    <rect x="50.25" y="24" width="1.5" height="2" fill="#ff2d78"/>
-    <rect x="53.5" y="24" width="1.5" height="2" fill="#ff2d78"/>
-    <rect x="45" y="30" width="12" height="14" rx="2" fill="#0b0b1a" stroke="#ff2d78" stroke-width="2"/>
-    <rect x="49" y="34" width="4" height="4" rx="0.5" fill="#ff2d78"/>
-    <rect x="41" y="30" width="3" height="6" fill="#ff2d78"/>
-    <rect x="36" y="26" width="6" height="6" rx="1" fill="#ff2d78"/>
-    <rect x="46" y="46" width="4" height="10" fill="#0b0b1a" stroke="#ff2d78" stroke-width="1.8"/>
-    <rect x="52" y="46" width="4" height="10" fill="#0b0b1a" stroke="#ff2d78" stroke-width="1.8"/>
-  </g>
-
-  <!-- LIGHTNING BOLT -->
-  <g filter="url(#glowYellow)">
-    <path d="M 34 20 L 28 33 L 33 33 L 30 46 L 38 31 L 33 31 L 36 20 Z"
-          fill="#ffe14d" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/>
-  </g>
-
-  <defs>
-    <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="0.8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <filter id="glowPink" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="0.8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <filter id="glowYellow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.2" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
+  <!-- "A" letterform — heavy condensed wedge with crossbar.
+       Single path with fill-rule="evenodd": outer A silhouette, inner triangle subtracts. -->
+  <path fill="#FFFFFF" fill-rule="evenodd" d="
+    M 32 10
+    L 54 56
+    L 42 56
+    L 38.5 46
+    L 25.5 46
+    L 22 56
+    L 10 56
+    Z
+    M 32 24
+    L 36.5 38
+    L 27.5 38
+    Z
+  "/>
 </svg>

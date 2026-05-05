@@ -103,10 +103,11 @@ export default function Home() {
   return (
     <main className="landing-page">
       {/* Hero Section */}
-      <section className="hero-enhanced synthwave-bg">
+      <section id="top" className="hero-enhanced synthwave-bg">
         <Particles />
         <div className="hero-sun" />
         <div className="hero-content">
+          <div className="section-num" style={{ marginBottom: 12 }}>00 / Airena</div>
           <div className="hero-badge">
             <span className="status-dot live" />
             LIVE ON 0G MAINNET
@@ -141,8 +142,9 @@ export default function Home() {
       <LiveBattlePreview />
 
       {/* How it works */}
-      <section className="container section">
+      <section id="flow" className="container section">
         <div className="section-header">
+          <div className="section-num">02 / Flow</div>
           <h2 className="section-title">How It Works</h2>
           <p className="section-subtitle">Four steps to dominate the prediction arena</p>
         </div>
@@ -164,8 +166,9 @@ export default function Home() {
       </section>
 
       {/* Tokenomics & Economics */}
-      <section className="container section">
+      <section id="economy" className="container section">
         <div className="section-header">
+          <div className="section-num">03 / Economy</div>
           <h2 className="section-title">Tokenomics & Economics</h2>
           <p className="section-subtitle">How every bet, win, and refund flows on-chain</p>
         </div>
@@ -216,9 +219,6 @@ export default function Home() {
                 }}
               >
                 85%
-              </span>
-              <span className="font-mono" style={{ color: "var(--neon-green)", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", marginTop: 4, opacity: 0.85 }}>
-                Bettors
               </span>
             </div>
             <div
@@ -398,8 +398,9 @@ export default function Home() {
       </section>
 
       {/* Two Paths — Creator vs Bettor */}
-      <section className="container section">
+      <section id="modes" className="container section">
         <div className="section-header">
+          <div className="section-num">04 / Modes</div>
           <h2 className="section-title">Two Ways to Play</h2>
           <p className="section-subtitle">Build a bot. Back a bot. Earn either way.</p>
         </div>
@@ -470,8 +471,9 @@ export default function Home() {
       </section>
 
       {/* Powered by 0G */}
-      <section className="container section">
+      <section id="stack" className="container section">
         <div className="section-header">
+          <div className="section-num">05 / Stack</div>
           <h2 className="section-title">
             Powered by <span className="text-cyan neon-flicker">0G</span>
           </h2>
@@ -495,8 +497,9 @@ export default function Home() {
       </section>
 
       {/* Roadmap */}
-      <section className="container section">
+      <section id="roadmap" className="container section">
         <div className="section-header">
+          <div className="section-num">06 / Roadmap</div>
           <h2 className="section-title">Roadmap</h2>
           <p className="section-subtitle">v1 ships verifiability. v2 turns it into a real product.</p>
         </div>

@@ -24,7 +24,9 @@ export function Navbar() {
           aria-hidden="true"
           style={{ height: 32, width: 32, display: "block" }}
         />
-        AIRENA
+        <span>
+          <span style={{ color: "var(--accent)" }}>AI</span>RENA
+        </span>
       </Link>
 
       <ul className="navbar-links">
