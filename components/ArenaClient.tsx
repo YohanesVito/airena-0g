@@ -689,7 +689,7 @@ export default function ArenaClient() {
   // non-wagmi data) to refresh, even if the round read is still cached.
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { data: roundCount, error: roundCountError, isFetching: roundCountFetching, status: roundCountStatus } = useRoundCount();
+  const { data: roundCount } = useRoundCount();
   const currentRoundId = Number(roundCount || 0);
 
   const { data: round } = useRound(currentRoundId);
@@ -916,21 +916,6 @@ export default function ArenaClient() {
 
   return (
     <main className="container section">
-      {/* Debug strip — shows the wagmi read state so we can see immediately
-          if the RPC is reachable. Can be removed after diagnostics are done. */}
-      <div className="font-mono text-xs" style={{
-        marginBottom: 16, padding: "8px 12px", borderRadius: 6,
-        background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,240,255,0.15)",
-        display: "flex", gap: 18, flexWrap: "wrap",
-        color: "rgba(255,255,255,0.6)",
-      }}>
-        <span>chain RPC read status: <span style={{ color: roundCountError ? "var(--neon-pink)" : roundCountStatus === "success" ? "var(--neon-green)" : "var(--neon-cyan)" }}>{roundCountStatus}</span></span>
-        <span>roundCount: <span style={{ color: "var(--neon-cyan)" }}>{roundCount?.toString() ?? "(undefined)"}</span></span>
-        <span>fetching: <span style={{ color: roundCountFetching ? "var(--neon-pink)" : "var(--neon-green)" }}>{String(roundCountFetching)}</span></span>
-        {roundCountError ? (
-          <span style={{ color: "var(--neon-pink)" }}>error: {roundCountError.message.slice(0, 80)}</span>
-        ) : null}
-      </div>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
