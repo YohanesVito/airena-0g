@@ -14,8 +14,14 @@ on screen, what to say, and the elapsed time so you can pace the recording.
 
 - [ ] Run through [`docs/WALKTHROUGH.md`](WALKTHROUGH.md) end-to-end. Fix anything red.
 - [ ] Connect the **admin wallet** in one browser profile, a **regular wallet** in another.
-- [ ] Pre-stage the round: round 1 (settled, all 4 bots WON) is already perfect — use it.
-      Don't try to record a live predict cycle (2–5 min + Storage sync delays).
+- [ ] Pre-stage the round you'll record against. Two options:
+      - **(A) Round 1, settled, all 4 bots WON** — original recommendation. Bots are
+        deactivated now but round 1 records remain on-chain.
+      - **(B) A fresh round with the new multi-creator bots (#5 TightScalper,
+        #6 MeanReverter, #7 TrendRider — three distinct creator wallets).**
+        Stronger Track 2 narrative; required if you record Scene 3.5. Run
+        create + predict + bet + settle in advance — don't try to record a live
+        predict cycle (2–5 min + Storage sync delays).
 - [ ] Open these tabs in advance:
   1. https://airena-0g.vercel.app/  (landing)
   2. https://airena-0g.vercel.app/arena  (round 1 settled view)
@@ -46,7 +52,8 @@ and the "Build AI Agents. Battle on Predictions. Earn on Reputation." headline.
 ## Scene 2 — What it is + the economics  (0:15 → 0:40)
 
 **On screen:** Scroll smoothly through Tokenomics & Economics — pause on the
-85% / 10% / 5% cards — then Two Ways to Play.
+**stacked-bar visualization** of the 85 / 10 / 5 split (the green/pink/cyan bar
+with `No winner: 100% refund` label on the right) — then Two Ways to Play.
 
 **Voiceover:**
 
@@ -66,19 +73,57 @@ This is the most important scene. Track 2 explicitly calls out
 
 **On screen — sub-shots:**
 
-1. Cut to `/arena`. Round 1, settled. Hover the **Judge AI panel's**
-   `VERIFIED · 0G TEE 0xd45b…6617d4` badge — let the tooltip render
-   (signer / chatID / signature preview).
-2. Move down to one of the bot cards (ZeroBound or smoke-bot — both WON).
-   Hover its TEE badge inline with the prediction range.
-3. Cut to terminal. Paste and run, in sequence:
+1. Cut to `/arena`. Round 1, settled. Scroll past the chart to the
+   **Competing Bots** grid. Hover **smoke-bot's** `OK VERIFIED · 0G TEE
+   0xd45b…17d4` badge inline with the $75,550–$75,850 prediction range.
+   Hold ~3s so the signer address is readable. ZeroBound is an equally good
+   second-choice target (both WON, both TEE-attested).
+2. Cut to terminal. Paste and run, in sequence — **all-in-one terminal,
+   no browser DevTools needed**:
    ```bash
-   POOL=0xaE5d26e8bDFe3bfeEd4C9A27c2394Dbb2F70Fd73
-   RPC=https://evmrpc.0g.ai
-   cast call $POOL "getPrediction(uint256,uint256)((uint256,uint256,uint256,string,uint256,bool))" 1 3 --rpc-url $RPC
-   curl http://localhost:3000/api/storage/trace/<reasoningHash> | jq .trace.tee
-   # then in browser console: viem.recoverAddress(hashMessage(signedText), signature)
+   # Step 1: read the on-chain prediction. The 4th tuple field is the
+   # reasoningHash — a 0G Storage rootHash pointing at the TEE attestation.
+   cast call 0xaE5d26e8bDFe3bfeEd4C9A27c2394Dbb2F70Fd73 \
+     "getPrediction(uint256,uint256)((uint256,uint256,uint256,string,uint256,bool))" \
+     1 3 --rpc-url https://evmrpc.0g.ai
+
+   # Step 2: pull the trace off 0G Storage and extract the TEE envelope.
+   curl -s "https://airena-0g.vercel.app/api/storage/trace/<paste reasoningHash from step 1>" \
+     | jq .trace.tee
+
+   # Step 3: independently recover the signer from the signature.
+   # Expected output: "Validation succeeded. Address 0xd45b...17d4 signed this message."
+   cast wallet verify --address <signer from step 2> \
+     "<signedText from step 2>" "<signature from step 2>"
    ```
+
+   **Pre-populated, paste-ready version for ZeroBound on Round 1** (so you can
+   run it cold on camera without copy-pasting between commands):
+   ```bash
+   # Step 1
+   cast call 0xaE5d26e8bDFe3bfeEd4C9A27c2394Dbb2F70Fd73 \
+     "getPrediction(uint256,uint256)((uint256,uint256,uint256,string,uint256,bool))" \
+     1 3 --rpc-url https://evmrpc.0g.ai
+
+   # Step 2
+   curl -s "https://airena-0g.vercel.app/api/storage/trace/0x6b1dcd1ad29796cb10abaf3fc3c505d59f7d4c533ab8974988db28fe70ede3f8" \
+     | jq .trace.tee
+
+   # Step 3
+   cast wallet verify --address 0xd45b4301940b297f76d6e622c1cea2ae660617d4 \
+     "66925278573836fa206c78f4a5d7ad66f841aee401cfd8ec65e4f42a9aa50a4b:876577a80ed7ba124190218518fb59ad80aaf8538946e743cede8c4c31eff6b8:centralized:aliyun:9e621febea357ff4460b91bf8b0b4bfe654d2e100edbc74770e76519d734830e" \
+     "0x9f99a054ba7cf6a3de313ba626056e9276671a1fd76fcf405a9dfb7fbc3ee54159e90430d4818f470e48437bc1d1d6e7fdb0393425bc4490277a6d00f79a9f711b"
+   ```
+   The recovered address matches the bot card's `0G TEE 0xd45b…17d4` badge.
+   That's the verifiability claim, end-to-end, in three commands.
+
+> **Why no Judge AI panel sub-shot:** the Judge AI badge depends on an
+> in-memory `judgeCache` in [app/api/rounds/route.ts:18-23](../app/api/rounds/route.ts#L18)
+> that doesn't survive Vercel serverless cold starts. Round 1's entry is long
+> gone — you'd need to re-stage a fresh round to repopulate it. Bot prediction
+> TEE attestations come from on-chain `getPrediction()`, are always available,
+> and tell the same verifiability story. Persisting `judgeCache` to 0G Storage
+> is the production fix (TODO already flagged in the source comment).
 
 **Voiceover:**
 
@@ -94,7 +139,35 @@ This is the most important scene. Track 2 explicitly calls out
 
 ---
 
-## Scene 4 — User flow  (1:30 → 2:25)
+## Scene 3.5 — Multi-creator proof  (1:30 → 1:36, silent B-roll)
+
+**Skip this scene if recording Round 1.** Required if recording the new round.
+
+**On screen — silent ~6s b-roll, NO new voiceover required:**
+
+Open https://chainscan.0g.ai/address/0x2187D61279a8A54dc8907865959ef6cC8beBDa14
+in a new tab (BotRegistry contract). Or open three address pages quickly in
+sequence:
+
+- TightScalper #5 → `0xb7192332B6DB95716ccc349Fe6a2757Cd086E34E`
+- MeanReverter #6 → `0x1dFf96F9812C8316105f2F8Fc8f06De444Ca14c5`
+- TrendRider   #7 → `0xaeBD4AE19fdf128FF811BB048A132dB401C5fB2a`
+
+Highlight each `creator` field with a cursor zoom or text-underline overlay
+to make the **three distinct addresses** obvious at a glance. No voiceover
+during this beat — let the on-screen text do the work, or pair it with an
+overlay caption: *"3 bots · 3 wallets · multi-creator on-chain"*.
+
+**Optional voiceover (only if you want to record one extra TTS clip ~6s):**
+
+> Three bots, three different wallets — Airena is multi-creator on-chain,
+> not one team running scripts.
+
+*(15 words, ~7s — optional. Without VO this scene is silent b-roll.)*
+
+---
+
+## Scene 4 — User flow  (1:36 → 2:31, was 1:30 → 2:25)
 
 **On screen — sub-shots:**
 
@@ -127,7 +200,7 @@ This is the most important scene. Track 2 explicitly calls out
 
 ---
 
-## Scene 5 — V2 vision  (2:25 → 2:50)
+## Scene 5 — V2 vision  (2:31 → 2:53, was 2:25 → 2:50)
 
 **On screen:** Scroll the landing page back up to the **Roadmap** section.
 Pause on the V2 column.
@@ -143,7 +216,7 @@ Pause on the V2 column.
 
 ---
 
-## Scene 6 — Close  (2:50 → 3:00)
+## Scene 6 — Close  (2:53 → 3:00, was 2:50 → 3:00)
 
 **On screen:** Landing hero or the AIRENA logo standalone. Hold for 3 seconds.
 
@@ -158,11 +231,13 @@ Pause on the V2 column.
 ## Total
 
 - **Voiceover:** 380 words → ~152s of speech
-- **Visual buffer:** ~28s of scrolling/cuts/holds without speech
-- **Sum:** ~180s, hard at 3:00
+- **Visual buffer:** ~18s of cuts/holds (Scene 3 reduced from 3 sub-shots to 2;
+  Scene 3.5 skipped on the Round 1 path)
+- **Sum:** ~170s — comfortably under the 3:00 cap.
 
-If you run long, cut from Scene 5 first (V2 vision). Verifiability (Scene 3)
-and User Flow (Scene 4) are the load-bearing scenes for judging.
+If recording the multi-creator path instead, add back ~6s for Scene 3.5 b-roll
+and ~10s for the Judge AI hover (assuming the round was pre-staged so the
+`judgeCache` is hot), then trim Scene 5 from 22s to ~16s to fit.
 
 ---
 

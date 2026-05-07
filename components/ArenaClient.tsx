@@ -262,6 +262,10 @@ function JudgePanel({ judge, settled }: { judge: JudgeData | null; settled: bool
 function TEEBadge({ reasoningHash }: { reasoningHash: string | undefined }) {
   const { trace, loading } = useReasoningTrace(reasoningHash);
   const tee = trace?.tee;
+  // "Copied" pill swaps in for the truncated signer for ~1.5s after click,
+  // so on-camera the verifier sees clear acknowledgment that the full address
+  // is now in their clipboard.
+  const [copied, setCopied] = useState(false);
 
   if (!reasoningHash || reasoningHash.length < 10) return null;
   if (loading && !tee) {
@@ -275,7 +279,7 @@ function TEEBadge({ reasoningHash }: { reasoningHash: string | undefined }) {
 
   const short = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
   const signedPreview = tee.signedText.length > 32 ? `${tee.signedText.slice(0, 32)}…` : tee.signedText;
-  const tooltip = `Verified by 0G Compute TEE
+  const tooltip = `Verified by 0G Compute TEE — click to copy signer address.
 Signer:   ${tee.signer}
 Chat ID:  ${tee.chatID}
 Signed:   ${signedPreview}
@@ -285,9 +289,25 @@ Status:   ${tee.verified ? "recovered address matches contract" : "unverified"}`
   const ok = tee.verified;
   const accent = ok ? "rgba(57,255,20" : "rgba(255,45,120"; // green vs pink
 
+  const onCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(tee.signer);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API can fail in non-secure contexts. Silently no-op —
+      // the title tooltip still shows the full address as a fallback.
+    }
+  };
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={onCopy}
       title={tooltip}
+      aria-label={`Copy TEE signer address ${tee.signer}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -297,7 +317,9 @@ Status:   ${tee.verified ? "recovered address matches contract" : "unverified"}`
         background: `${accent},0.08)`,
         border: `1px solid ${accent},0.35)`,
         borderRadius: 6,
-        cursor: "help",
+        cursor: "pointer",
+        font: "inherit",
+        outline: "none",
       }}
     >
       <span style={{ color: ok ? "var(--neon-green)" : "var(--neon-pink)", fontSize: 12 }}>
@@ -316,11 +338,16 @@ Status:   ${tee.verified ? "recovered address matches contract" : "unverified"}`
       </span>
       <span
         className="font-mono"
-        style={{ fontSize: 9, color: "rgba(255,255,255,0.55)" }}
+        style={{
+          fontSize: 10,
+          color: copied ? "var(--neon-green)" : "rgba(255,255,255,0.85)",
+          fontWeight: copied ? 700 : 500,
+          letterSpacing: copied ? 1.2 : 0,
+        }}
       >
-        {short(tee.signer)}
+        {copied ? "ADDRESS COPIED" : short(tee.signer)}
       </span>
-    </div>
+    </button>
   );
 }
 
