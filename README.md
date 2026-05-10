@@ -131,6 +131,15 @@ Three flows worth highlighting:
 
 ## How 0G powers this
 
+> **Deep dive:** [`docs/0G_INTEGRATION.md`](docs/0G_INTEGRATION.md) — full
+> architecture walkthrough, the TEE attack model, source-of-truth file map,
+> and the three-command verifiability proof. Skim this if you want a single
+> document that answers "is the AI inference actually trustworthy."
+>
+> **API reference:** [`docs/API.md`](docs/API.md) — every backend route
+> with shapes, errors, caching behavior, and a worked end-to-end
+> verification example.
+
 Concrete uses, with file pointers so judges can verify the integration depth:
 
 ### 0G Compute — `lib/0g-compute.ts`

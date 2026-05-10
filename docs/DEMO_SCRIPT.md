@@ -88,13 +88,13 @@ This is the most important scene. Track 2 explicitly calls out
      1 3 --rpc-url https://evmrpc.0g.ai
 
    # Step 2: pull the trace off 0G Storage and extract the TEE envelope.
-   curl -s "https://airena-0g.vercel.app/api/storage/trace/<paste reasoningHash from step 1>" \
+   curl -s "https://airena-0g.vercel.app/api/storage/trace/0x6b1dcd1ad29796cb10abaf3fc3c505d59f7d4c533ab8974988db28fe70ede3f8" \
      | jq .trace.tee
 
    # Step 3: independently recover the signer from the signature.
    # Expected output: "Validation succeeded. Address 0xd45b...17d4 signed this message."
-   cast wallet verify --address <signer from step 2> \
-     "<signedText from step 2>" "<signature from step 2>"
+   cast wallet verify --address 0xd45b4301940b297f76d6e622c1cea2ae660617d4 \
+     "66925278573836fa206c78f4a5d7ad66f841aee401cfd8ec65e4f42a9aa50a4b:876577a80ed7ba124190218518fb59ad80aaf8538946e743cede8c4c31eff6b8:centralized:aliyun:9e621febea357ff4460b91bf8b0b4bfe654d2e100edbc74770e76519d734830e" "0x9f99a054ba7cf6a3de313ba626056e9276671a1fd76fcf405a9dfb7fbc3ee54159e90430d4818f470e48437bc1d1d6e7fdb0393425bc4490277a6d00f79a9f711b"
    ```
 
    **Pre-populated, paste-ready version for ZeroBound on Round 1** (so you can
@@ -169,21 +169,71 @@ overlay caption: *"3 bots · 3 wallets · multi-creator on-chain"*.
 
 ## Scene 4 — User flow  (1:36 → 2:31, was 1:30 → 2:25)
 
+**Pre-open these tabs in advance, in this order — every cut becomes a tab
+switch, no typing in the address bar on camera:**
+
+1. https://airena-0g.vercel.app/create
+2. https://airena-0g.vercel.app/arena   *(reuse the tab from Scene 3)*
+3. https://airena-0g.vercel.app/creator *(admin wallet connected)*
+
+**Important pre-check:** sub-shot 2 (Place a bet) requires a round in
+**BETTING** state (status=2). Round 1 is settled — the BET input won't
+exist there. Either:
+- Stage a fresh round before recording (admin: Create Round → Predict),
+  leave it in BETTING for the duration of the shoot. **Recommended.**
+- Or skip the live bet shot and splice 5–7s of pre-recorded BET footage
+  from your staging session.
+
 **On screen — sub-shots:**
 
-1. **Create a bot** (~10s) — cut to `/create`. Don't actually deploy. Pan over the
-   form: name field, strategy prompt, the "Privacy: full prompt never shown"
-   info row. Cursor lands on the `Deploy Bot` button.
-2. **Place a bet** (~15s) — switch back to `/arena`. Hover one bot card. Type a
-   stake in the input — call out the **`→ 0.012 0G` projection** that appears
-   live next to the pool size. Click the BET button if you have spare 0G;
-   otherwise just leave the input populated.
-3. **Settle + claim** (~10s) — narrate over the same arena view; show the
-   `WON` badges and `Pool share: X%` lines on the winning bots.
-4. **Creator dashboard** (~15s) — cut to `/creator`. Show the four stat cards
-   (Active Bots / Rounds / Win Rate / Wins), the green Earnings card,
-   the My Bots table with the **Avg Range column in dollars**, and scroll to
-   the Bet History table.
+1. **Create a bot** (~10s) — cut to /create. Pan top→bottom over the form:
+   - Bot name field — type `DemoBot` so the field reads on camera, then
+     stop. **Do not click Deploy Bot.**
+   - Strategy prompt textarea — leave empty (panning over the placeholder
+     copy is enough)
+   - The grey **"Privacy: full prompt never shown"** info row directly
+     under the textarea — pause cursor here ~2s, this is the on-chain
+     privacy beat in the voiceover
+   - Cursor lands on the **Deploy Bot** button at the bottom but does not
+     click
+
+2. **Place a bet** (~15s) — switch to /arena (the BETTING-state round).
+   - Hover **ZeroBound's card** (continuity with Scene 3 if it's in the
+     fresh round; otherwise pick whichever bot is in the new round)
+   - Click into the **stake input**, type `0.005`
+   - Pause ~2s on the live projection — `→ X.XXX 0G` appears next to the
+     pool size and updates as you type. **This live projection is the
+     centerpiece of the sub-shot** — let it sit visible
+   - If your demo wallet has spare 0G: click **BET**, sign the MetaMask
+     popup quickly, return to the arena view to show the pool grew.
+     Otherwise leave the input populated and cut
+
+3. **Settle + claim** (~10s) — flip to the **settled Round 1** /arena view:
+   - Scroll to the Competing Bots grid — all four bots show **WON** in
+     green (confirmed in your Scene 3 footage)
+   - Hover **ZeroBound's card** so the **Pool share: 53.1%** + **0.001 0G
+     stake** lines are clearly in frame. Hold ~3s
+   - The red **ALREADY CLAIMED** banner above the grid is the on-chain
+     proof the claim flow worked — let it remain visible during the VO
+     line about the contract scoring on-chain
+
+4. **Creator dashboard** (~15s) — cut to /creator (admin wallet):
+   - Open on the **four stat cards** at top: Active Bots / Rounds / Win
+     Rate / Wins. Hold ~3s
+   - Pan down to the green **Earnings** card. Hold ~2s — this is the
+     rev-share story
+   - Scroll to **My Bots** table. Linger on the **Avg Range column in
+     dollars** (e.g. `$75,613–$75,813` for ZeroBound)
+   - Scroll to the **Bet History** table at the bottom. Stop with at
+     least one row visible so the round / stake / status columns read
+
+**On-camera cheat sheet (paste-ready order):**
+```
+1. /create   → type "DemoBot" → pan to "Privacy: full prompt never shown" → cursor on Deploy Bot
+2. /arena    → hover ZeroBound → stake input: "0.005" → dwell on "→ X.XXX 0G" projection (~2s)
+3. /arena    → scroll to Round 1 settled grid → hover ZeroBound (53.1% pool share, 0.001 0G stake)
+4. /creator  → 4 stat cards (~3s) → Earnings card (~2s) → My Bots ($ Avg Range) → Bet History row
+```
 
 **Voiceover:**
 
