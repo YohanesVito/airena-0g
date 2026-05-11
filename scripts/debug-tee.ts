@@ -1,7 +1,7 @@
 import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 import { ethers } from "ethers";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://evmrpc-testnet.0g.ai";
+const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://evmrpc.0g.ai";
 const PROVIDER = process.env.COMPUTE_PROVIDER_ADDRESS!;
 const PK = process.env.PRIVATE_KEY!;
 

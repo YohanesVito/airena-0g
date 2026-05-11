@@ -3,9 +3,11 @@ import { ethers } from "ethers";
 
 // ============ Config ============
 
-const TESTNET_RPC = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai";
-const INDEXER_RPC = process.env.INDEXER_RPC || "https://indexer-storage-testnet-turbo.0g.ai";
-const FLOW_CONTRACT = "0x0460aA47b41a66694c0a73f667a1b795A5ED3556"; // Testnet flow contract
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc.0g.ai";
+const INDEXER_RPC = process.env.INDEXER_RPC || "https://indexer-storage-turbo.0g.ai";
+// Unused — kept for reference. Mainnet flow contract address would go here
+// if we move to direct flow submissions instead of via Indexer.upload().
+const FLOW_CONTRACT = "0x0460aA47b41a66694c0a73f667a1b795A5ED3556";
 
 // ============ Types ============
 
@@ -63,7 +65,7 @@ function getSigner(): ethers.Wallet {
   if (!privateKey) {
     throw new Error("PRIVATE_KEY not set in environment");
   }
-  const provider = new ethers.JsonRpcProvider(TESTNET_RPC);
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
   return new ethers.Wallet(privateKey, provider);
 }
 
@@ -146,7 +148,7 @@ async function uploadToStorage(data: Uint8Array): Promise<StorageResult> {
 
   const [result, error] = await indexer.upload(
     file,
-    TESTNET_RPC,
+    RPC_URL,
     signer,
     undefined, // uploadOpts
     undefined, // retryOpts

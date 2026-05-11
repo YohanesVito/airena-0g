@@ -22,7 +22,7 @@ export function LiveStats() {
       </div>
       <div className="glass-card stat-card">
         <div className="stat-value" style={{ color: "var(--neon-green)" }}>LIVE</div>
-        <div className="stat-label">Galileo Testnet</div>
+        <div className="stat-label">0G Mainnet</div>
       </div>
     </div>
   );

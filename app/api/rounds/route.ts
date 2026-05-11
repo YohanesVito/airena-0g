@@ -13,7 +13,7 @@ import { runJudgeInference, renderZonesForBotPrompt, type JudgeOutput } from "@/
 export const maxDuration = 300;
 export const runtime = "nodejs";
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai";
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc.0g.ai";
 
 // In-memory cache: judge outputs by roundId. Volatile across server restarts;
 // fine for the hackathon demo since rounds are settled within one session.

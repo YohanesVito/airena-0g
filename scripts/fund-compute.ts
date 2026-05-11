@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 
 // Min ledger balance to create one is 3 0G. Default to 4 for headroom.
 const DEPOSIT_OG = Number(process.env.DEPOSIT_OG ?? 4);
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://evmrpc-testnet.0g.ai";
+const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://evmrpc.0g.ai";
 const PROVIDER = process.env.COMPUTE_PROVIDER_ADDRESS;
 const PK = process.env.PRIVATE_KEY;
 

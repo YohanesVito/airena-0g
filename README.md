@@ -247,7 +247,7 @@ Pool split: **85% bettors / 10% bot creators / 5% platform fee** (paid only on r
 ### 1. Prerequisites
 - [Bun](https://bun.sh) ≥ 1.3
 - [Foundry](https://book.getfoundry.sh) (forge, cast)
-- A wallet with **~5 0G** on Galileo Testnet ([faucet](https://faucet.0g.ai))
+- A wallet funded on **0G Mainnet** (acquire 0G via exchange or bridge) for interacting with the live deployment, OR ~5 0G on Galileo Testnet ([faucet](https://faucet.0g.ai)) for local dev against your own deployed contracts
 
 ### 2. Install
 ```bash
@@ -285,7 +285,7 @@ The contracts above are already deployed; you can use them as-is. If you want yo
 cd airena-contracts-0g
 forge test                         # 33 tests should pass
 forge create \
-  --rpc-url https://evmrpc-testnet.0g.ai \
+  --rpc-url https://evmrpc.0g.ai \
   --private-key $PK \
   --gas-price 4000000000 --priority-gas-price 2000000000 \
   --broadcast \

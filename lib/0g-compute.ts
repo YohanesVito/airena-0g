@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 
 // ============ Config ============
 
-const TESTNET_RPC = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc-testnet.0g.ai";
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://evmrpc.0g.ai";
 const COMPUTE_PROVIDER = process.env.COMPUTE_PROVIDER_ADDRESS || "";
 const MODEL = "qwen-2.5-7b-instruct";
 
@@ -62,7 +62,7 @@ function getSigner(): ethers.Wallet {
   if (!privateKey) {
     throw new Error("PRIVATE_KEY not set in environment");
   }
-  const provider = new ethers.JsonRpcProvider(TESTNET_RPC);
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
   return new ethers.Wallet(privateKey, provider);
 }
 
